@@ -1,0 +1,122 @@
+
+{
+  "simulator": {
+    "name": "Smart Meter Firmware Simulator",
+    "version": "1.0.0",
+    "update_frequency_hz": 1000
+  },
+  "mcu_profiles": {
+    "STM32F407VG": {
+      "family": "STM32F4",
+      "architecture": "ARM Cortex-M4",
+      "flash_size": 1048576,
+      "ram_size": 196608,
+      "clock_frequency": 168000000,
+      "adc_channels": 16,
+      "gpio_count": 100,
+      "timer_count": 14,
+      "uart_count": 6,
+      "spi_count": 3,
+      "i2c_count": 3,
+      "can_count": 2
+    },
+    "RL78I1C": {
+      "family": "Renesas RL78",
+      "architecture": "RL78",
+      "flash_size": 524288,
+      "ram_size": 49152,
+      "clock_frequency": 32000000,
+      "adc_channels": 8,
+      "gpio_count": 64,
+      "timer_count": 8,
+      "uart_count": 2,
+      "spi_count": 1,
+      "i2c_count": 1,
+      "can_count": 0
+    },
+    "MSP430F5529": {
+      "family": "TI MSP430",
+      "architecture": "MSP430",
+      "flash_size": 131072,
+      "ram_size": 8192,
+      "clock_frequency": 25000000,
+      "adc_channels": 12,
+      "gpio_count": 48,
+      "timer_count": 3,
+      "uart_count": 2,
+      "spi_count": 2,
+      "i2c_count": 1,
+      "can_count": 0
+    }
+  },
+  "metering": {
+    "default_voltage": 230.0,
+    "default_current": 5.0,
+    "default_frequency": 50.0,
+    "default_power_factor": 0.95,
+    "sample_rate": 12800,
+    "samples_per_cycle": 256
+  },
+  "protocols": {
+    "dlms_cosem": {
+      "enabled": true,
+      "port": 4059,
+      "timeout_ms": 5000
+    },
+    "modbus_rtu": {
+      "enabled": true,
+      "baud_rate": 9600,
+      "data_bits": 8,
+      "stop_bits": 1,
+      "parity": "none"
+    },
+    "modbus_tcp": {
+      "enabled": true,
+      "port": 502,
+      "timeout_ms": 3000
+    },
+    "iec62056": {
+      "enabled": true,
+      "baud_rate": 300,
+      "optical_interface": true
+    }
+  },
+  "tamper_events": [
+    {
+      "name": "Magnet Tamper",
+      "description": "Magnetic field interference",
+      "detection_threshold": 0.1
+    },
+    {
+      "name": "Reverse Current",
+      "description": "Energy flowing in reverse direction",
+      "detection_threshold": -10.0
+    },
+    {
+      "name": "Neutral Missing",
+      "description": "Neutral wire disconnected",
+      "detection_threshold": 0.2
+    },
+    {
+      "name": "Phase Loss",
+      "description": "One or more phases lost",
+      "detection_threshold": 0.1
+    },
+    {
+      "name": "Over Voltage",
+      "description": "Voltage exceeds normal range",
+      "detection_threshold": 1.1
+    },
+    {
+      "name": "Under Voltage", 
+      "description": "Voltage below normal range",
+      "detection_threshold": 0.9
+    }
+  ],
+  "logging": {
+    "level": "INFO",
+    "file": "simulator.log",
+    "max_size_mb": 100,
+    "backup_count": 5
+  }
+}

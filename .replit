@@ -67,3 +67,19 @@ pattern = "**/*.{cpp,h}"
 
 [languages.cpp.languageServer]
 start = "ccls"
+
+[workflows]
+runButton = "Build and Run"
+
+[[workflows.workflow]]
+name = "Build and Run"
+author = 18652289
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "make"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "./smart_meter_simulator"
