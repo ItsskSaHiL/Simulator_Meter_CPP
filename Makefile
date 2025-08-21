@@ -1,28 +1,11 @@
-all: main
+all: $(TARGET)
 
-CXX = clang++
-override CXXFLAGS += -g -Wall -Werror
-
-SRCS = $(shell find . -name '.ccls-cache' -type d -prune -o -type f -name '*.cpp' -print | sed -e 's/ /\\ /g')
-HEADERS = $(shell find . -name '.ccls-cache' -type d -prune -o -type f -name '*.h' -print)
-
-main: $(SRCS) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(SRCS) -o "$@"
-
-main-debug: $(SRCS) $(HEADERS)
-	NIX_HARDENING_ENABLE= $(CXX) $(CXXFLAGS) -O0  $(SRCS) -o "$@"
-
-clean:
-	rm -f main main-debug
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -g
-QTFLAGS = $(shell pkg-config --cflags Qt5Widgets Qt5Core Qt5Gui)
-QTLIBS = $(shell pkg-config --libs Qt5Widgets Qt5Core Qt5Gui)
+CXXFLAGS = -g -Wall -std=c++17 $(shell pkg-config --cflags Qt5Widgets Qt5Gui Qt5Core)
+LDFLAGS = $(shell pkg-config --libs Qt5Widgets Qt5Gui Qt5Core)
 
-SRCDIR = .
-SOURCES = main.cpp simulator_core.cpp mcu_emulator.cpp metering_engine.cpp protocol_handler.cpp
-HEADERS = simulator_core.h mcu_emulator.h metering_engine.h protocol_handler.h
-
+SOURCES = main.cpp simulator_core.cpp mcu_emulator.cpp metering_engine.cpp protocol_handler.cpp component_library.cpp property_editor.cpp measurement_tools.cpp extended_mcu_support.cpp
+HEADERS = simulator_core.h mcu_emulator.h metering_engine.h protocol_handler.h component_library.h property_editor.h measurement_tools.h extended_mcu_support.h
 OBJECTS = $(SOURCES:.cpp=.o)
 TARGET = smart_meter_simulator
 
@@ -31,13 +14,13 @@ TARGET = smart_meter_simulator
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(QTLIBS)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $(TARGET)
 
 %.o: %.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(QTFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 main.o: main.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(QTFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS) $(TARGET) main.moc

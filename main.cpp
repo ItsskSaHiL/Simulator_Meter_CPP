@@ -37,6 +37,10 @@
 #include "mcu_emulator.h"
 #include "metering_engine.h"
 #include "protocol_handler.h"
+#include "component_library.h"
+#include "property_editor.h"
+#include "measurement_tools.h"
+#include "extended_mcu_support.h"
 
 class SmartMeterSimulator : public QMainWindow
 {
@@ -65,6 +69,8 @@ private:
     void setupPeripheralsTab();
     void setupProtocolsTab();
     void setupLoggingTab();
+    void setupCircuitDesignTab();
+    void setupMeasurementTab();
 
     // Core components
     std::unique_ptr<SimulatorCore> m_core;
@@ -125,6 +131,19 @@ private:
     QPushButton *m_exportBtn;
     QPushButton *m_clearLogBtn;
 
+    // Circuit Design Tab
+    QWidget *m_circuitTab;
+    ComponentLibrary *m_componentLibrary;
+    CircuitCanvas *m_circuitCanvas;
+    PropertyEditor *m_propertyEditor;
+
+    // Measurement Tab
+    QWidget *m_measurementTab;
+    MeasurementTools *m_measurementTools;
+
+    // Extended MCU Support
+    std::unique_ptr<ExtendedMCUEmulator> m_extendedMCU;
+
     bool m_simulationRunning;
 };
 
@@ -137,6 +156,7 @@ SmartMeterSimulator::SmartMeterSimulator(QWidget *parent)
     m_mcuEmulator = std::make_unique<MCUEmulator>();
     m_meteringEngine = std::make_unique<MeteringEngine>();
     m_protocolHandler = std::make_unique<ProtocolHandler>();
+    m_extendedMCU = std::make_unique<ExtendedMCUEmulator>();
 
     setupUI();
     setupMenuBar();
@@ -163,6 +183,8 @@ void SmartMeterSimulator::setupUI()
     setupPeripheralsTab();
     setupProtocolsTab();
     setupLoggingTab();
+    setupCircuitDesignTab();
+    setupMeasurementTab();
 }
 
 void SmartMeterSimulator::setupMenuBar()
@@ -214,12 +236,20 @@ void SmartMeterSimulator::setupFirmwareTab()
 
     firmwareLayout->addWidget(new QLabel("MCU Family:"), 1, 0);
     m_mcuFamilyCombo = new QComboBox();
-    m_mcuFamilyCombo->addItems({"STM32F4", "STM32F7", "STM32H7", "Renesas RL78", "TI MSP430", "NXP LPC"});
+    m_mcuFamilyCombo->addItems({
+        "STM32F0", "STM32F1", "STM32F4", "STM32F7", "STM32G0", "STM32G4", "STM32H7", "STM32L4", 
+        "ESP32", "ESP8266", "Arduino Uno", "Arduino Mega", "Raspberry Pi Pico",
+        "Renesas RL78", "TI MSP430", "NXP LPC", "NXP Kinetis", "RISC-V"
+    });
     firmwareLayout->addWidget(m_mcuFamilyCombo, 1, 1);
 
     firmwareLayout->addWidget(new QLabel("Part Number:"), 2, 0);
     m_mcuPartCombo = new QComboBox();
-    m_mcuPartCombo->addItems({"STM32F407VG", "STM32F429ZI", "RL78/I1C", "MSP430F5529", "LPC1768"});
+    m_mcuPartCombo->addItems({
+        "STM32F407VG", "STM32F429ZI", "STM32F103C8", "STM32G071RB", "STM32H743VI",
+        "ESP32-WROOM-32", "ESP8266-12E", "ATmega328P", "ATmega2560", "RP2040",
+        "RL78/G13", "MSP430F5529", "LPC1768", "MK64FN1M0", "FE310-G002"
+    });
     firmwareLayout->addWidget(m_mcuPartCombo, 2, 1);
 
     firmwareLayout->addWidget(new QLabel("Package:"), 3, 0);
@@ -566,6 +596,82 @@ void SmartMeterSimulator::stopSimulation()
     m_simulationRunning = false;
     m_startBtn->setEnabled(true);
     m_stopBtn->setEnabled(false);
+
+
+void SmartMeterSimulator::setupCircuitDesignTab()
+{
+    m_circuitTab = new QWidget();
+    m_tabWidget->addTab(m_circuitTab, "Circuit Design");
+
+    QHBoxLayout *layout = new QHBoxLayout(m_circuitTab);
+
+    // Component Library (left panel)
+    m_componentLibrary = new ComponentLibrary();
+    layout->addWidget(m_componentLibrary);
+
+    // Circuit Canvas (center)
+    m_circuitCanvas = new CircuitCanvas();
+    layout->addWidget(m_circuitCanvas, 1);
+
+    // Property Editor (right panel)
+    m_propertyEditor = new PropertyEditor();
+    layout->addWidget(m_propertyEditor);
+
+    // Connect signals
+    connect(m_componentLibrary, &ComponentLibrary::componentSelected,
+            [this](ComponentType type, const QString& name) {
+                // Start drag operation or add to canvas
+                QPointF center = m_circuitCanvas->mapToScene(m_circuitCanvas->rect().center());
+                m_circuitCanvas->addComponent(type, name, center);
+            });
+
+    connect(m_circuitCanvas, &CircuitCanvas::componentSelected,
+            m_propertyEditor, &PropertyEditor::setComponent);
+
+    connect(m_propertyEditor, &PropertyEditor::propertyChanged,
+            [this](const QString& name, const QVariant& value) {
+                // Update simulation based on property changes
+                m_systemLog->append(QString("Property changed: %1 = %2").arg(name, value.toString()));
+            });
+}
+
+void SmartMeterSimulator::setupMeasurementTab()
+{
+    m_measurementTab = new QWidget();
+    m_tabWidget->addTab(m_measurementTab, "Measurements");
+
+    QVBoxLayout *layout = new QVBoxLayout(m_measurementTab);
+
+    m_measurementTools = new MeasurementTools();
+    layout->addWidget(m_measurementTools);
+
+    // Connect measurement tools to simulation data
+    connect(m_updateTimer, &QTimer::timeout, [this]() {
+        if (!m_simulationRunning) return;
+
+        // Update oscilloscope with voltage/current waveforms
+        auto measurements = m_meteringEngine->getMeasurements();
+        std::vector<double> voltageData;
+        std::vector<double> currentData;
+        
+        // Generate sample waveform data (in real implementation, get from metering engine)
+        for (int i = 0; i < 100; i++) {
+            double t = i * 0.0001; // 100us per sample
+            voltageData.push_back(measurements.voltageRMS * sin(2 * M_PI * measurements.frequency * t));
+            currentData.push_back(measurements.currentRMS * sin(2 * M_PI * measurements.frequency * t - acos(measurements.powerFactor)));
+        }
+
+        m_measurementTools->getOscilloscope()->updateTrace("Voltage", voltageData);
+        m_measurementTools->getOscilloscope()->updateTrace("Current", currentData);
+
+        // Update multimeter readings
+        m_measurementTools->getMultimeter()->updateReading("Voltage", measurements.voltageRMS, "V");
+        m_measurementTools->getMultimeter()->updateReading("Current", measurements.currentRMS, "A");
+        m_measurementTools->getMultimeter()->updateReading("Power", measurements.activePower, "W");
+        m_measurementTools->getMultimeter()->updateReading("Frequency", measurements.frequency, "Hz");
+    });
+}
+
     m_statusLabel->setText("Stopped");
     
     m_core->stopSimulation();

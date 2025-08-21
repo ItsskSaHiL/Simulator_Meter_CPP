@@ -69,7 +69,7 @@ pattern = "**/*.{cpp,h}"
 start = "ccls"
 
 [workflows]
-runButton = "Build and Run"
+runButton = "Build and Run Extended Simulator"
 
 [[workflows.workflow]]
 name = "Build and Run"
@@ -79,6 +79,23 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "make"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "./smart_meter_simulator"
+
+[[workflows.workflow]]
+name = "Build and Run Extended Simulator"
+author = 18652289
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkg-config --cflags --libs Qt5Widgets Qt5Gui Qt5Core > qt_flags.txt"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "g++ -std=c++17 -g -Wall $(cat qt_flags.txt) -fPIC -o smart_meter_simulator main.cpp simulator_core.cpp mcu_emulator.cpp metering_engine.cpp protocol_handler.cpp component_library.cpp property_editor.cpp measurement_tools.cpp extended_mcu_support.cpp"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
