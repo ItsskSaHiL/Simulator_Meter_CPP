@@ -21,6 +21,7 @@ enum class MCUArchitecture {
     ATMEL_AVR,
     PIC16,
     PIC32,
+    MIPS32,
     RISC_V
 };
 
@@ -49,6 +50,7 @@ enum class MCUFamily {
     TI_MSP430F,
     RENESAS_RL78G1X,
     RENESAS_RL78G2X,
+    RENESAS_RX,
     ESP32_WROOM,
     ESP32_S2,
     ESP32_S3,
@@ -56,7 +58,11 @@ enum class MCUFamily {
     ESP8266_WEMOS,
     ARDUINO_UNO,
     ARDUINO_MEGA,
-    RASPBERRY_PI_PICO
+    RASPBERRY_PI_PICO,
+    MAXIM_78XX,
+    ANALOG_DEVICES_ADE,
+    MICROCHIP_PIC32,
+    SILABS_EFR32
 };
 
 struct MCUVariant {

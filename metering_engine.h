@@ -6,6 +6,19 @@
 #include <map>
 #include <chrono>
 
+struct PhasorData {
+    double magnitude;
+    double phase;  // in degrees
+    double real;
+    double imag;
+};
+
+struct HarmonicData {
+    double magnitude;
+    double phase;
+    double percentage; // as % of fundamental
+};
+
 struct MeteringMeasurements {
     double voltageRMS;
     double currentRMS;
@@ -19,6 +32,21 @@ struct MeteringMeasurements {
     double current[3];  // Phase currents for 3-phase
     double thd_voltage;
     double thd_current;
+    
+    // Phasor data
+    PhasorData voltagePhasor[3];   // Voltage phasors for each phase
+    PhasorData currentPhasor[3];   // Current phasors for each phase
+    
+    // Harmonics up to 33rd order
+    HarmonicData voltageHarmonics[33];  // 1st to 33rd harmonic
+    HarmonicData currentHarmonics[33];  // 1st to 33rd harmonic
+    
+    // Additional power quality parameters
+    double crest_factor_voltage;
+    double crest_factor_current;
+    double k_factor;               // K-factor for transformer derating
+    double displacement_pf;        // Displacement power factor (fundamental)
+    double distortion_pf;         // Distortion power factor
 };
 
 struct TamperEvent {
@@ -58,8 +86,17 @@ public:
     // Signal injection
     void injectVoltageDip(double magnitude, double duration);
     void injectFrequencyVariation(double deviation, double duration);
-    void injectHarmonics(int harmonic, double magnitude);
+    void injectHarmonics(int harmonic, double magnitude, double phase = 0.0);
     void injectNoise(double amplitude);
+    void injectInterharmonics(double frequency, double magnitude);
+    
+    // Harmonics and phasor analysis
+    void calculateHarmonics();
+    void calculatePhasors();
+    std::vector<HarmonicData> getVoltageHarmonics() const;
+    std::vector<HarmonicData> getCurrentHarmonics() const;
+    std::vector<PhasorData> getVoltagePhasors() const;
+    std::vector<PhasorData> getCurrentPhasors() const;
     
     // Relay control
     void setRelayState(bool connected) { m_relayConnected = connected; }
@@ -116,7 +153,14 @@ private:
     // Relay state
     bool m_relayConnected;
     
-    // Harmonics
-    std::map<int, double> m_harmonics; // harmonic number -> magnitude
+    // Harmonics with phase information
+    std::map<int, std::pair<double, double>> m_harmonics; // harmonic number -> (magnitude, phase)
+    std::map<double, double> m_interharmonics; // frequency -> magnitude
     double m_noiseAmplitude;
+    
+    // FFT and analysis
+    void performFFT(const std::vector<double>& samples, std::vector<std::complex<double>>& fft_result);
+    void calculateCrestFactor();
+    void calculateKFactor();
+    void calculatePowerFactorComponents();
 };

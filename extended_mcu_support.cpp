@@ -127,6 +127,34 @@ void MCUDatabase::addRenesasMCUs()
         64, 4, 4, 32, 31, 8, 1, 8, 2, 1, 1, false, false, false, false, false,
         {"LQFP48"}, {{"LowPower", "yes"}}
     });
+    
+    // RL78/I1C - widely used in smart meters
+    m_mcuDatabase.push_back({
+        "RL78/I1C", MCUFamily::RENESAS_RL78G1X, MCUArchitecture::RENESAS_RL78,
+        128, 8, 4, 32, 31, 12, 2, 8, 3, 2, 1, false, false, false, false, false,
+        {"LQFP64", "QFN64"}, {{"LowPower", "yes"}, {"MetrologyCPU", "yes"}}
+    });
+    
+    // RL78/I1D - enhanced metering MCU
+    m_mcuDatabase.push_back({
+        "RL78/I1D", MCUFamily::RENESAS_RL78G1X, MCUArchitecture::RENESAS_RL78,
+        256, 16, 8, 32, 40, 16, 3, 10, 4, 3, 2, false, false, false, false, false,
+        {"LQFP80", "BGA81"}, {{"LowPower", "yes"}, {"MetrologyCPU", "yes"}, {"DSP", "yes"}}
+    });
+    
+    // RL78/L12 - Low power for battery backup
+    m_mcuDatabase.push_back({
+        "RL78/L12", MCUFamily::RENESAS_RL78G1X, MCUArchitecture::RENESAS_RL78,
+        64, 4, 4, 32, 31, 8, 1, 6, 2, 1, 1, false, false, false, false, false,
+        {"LQFP48"}, {{"UltraLowPower", "yes"}}
+    });
+    
+    // RX130 - for advanced metering
+    m_mcuDatabase.push_back({
+        "RX130", MCUFamily::RENESAS_RX, MCUArchitecture::RENESAS_RX,
+        512, 32, 8, 32, 36, 12, 2, 8, 4, 2, 1, false, true, false, false, false,
+        {"LQFP64"}, {{"DSP", "yes"}, {"FPU", "yes"}}
+    });
 }
 
 void MCUDatabase::addOtherMCUs()
@@ -136,6 +164,34 @@ void MCUDatabase::addOtherMCUs()
         "FE310-G002", MCUFamily::NXP_LPC11XX, MCUArchitecture::RISC_V,
         0, 16, 0, 320, 19, 0, 0, 3, 2, 1, 1, false, false, false, false, false,
         {"QFN48"}, {{"RISC-V", "RV32IMAC"}}
+    });
+    
+    // Maxim MAX78630 - Dual-Core ARM M4 for poly-phase energy measurement
+    m_mcuDatabase.push_back({
+        "MAX78630", MCUFamily::MAXIM_78XX, MCUArchitecture::ARM_CORTEX_M4,
+        512, 160, 0, 120, 68, 24, 6, 16, 6, 4, 2, true, true, false, false, false,
+        {"TQFP100", "BGA121"}, {{"DualCore", "yes"}, {"MetrologyAFE", "yes"}, {"LCD", "yes"}}
+    });
+    
+    // Analog Devices ADE9000 - High Accuracy Polyphase Energy Measurement IC
+    m_mcuDatabase.push_back({
+        "ADE9000", MCUFamily::ANALOG_DEVICES_ADE, MCUArchitecture::ARM_CORTEX_M3,
+        256, 32, 0, 80, 32, 8, 0, 4, 2, 2, 1, false, false, false, false, false,
+        {"LFCSP64"}, {{"EnergyMeasurement", "yes"}, {"CalibrationEngine", "yes"}}
+    });
+    
+    // Microchip PIC32MX - for communication gateway
+    m_mcuDatabase.push_back({
+        "PIC32MX795F512L", MCUFamily::MICROCHIP_PIC32, MCUArchitecture::MIPS32,
+        512, 128, 0, 80, 85, 16, 0, 5, 4, 2, 2, true, true, true, false, false,
+        {"LQFP100"}, {{"Ethernet", "yes"}, {"USB", "yes"}}
+    });
+    
+    // Silicon Labs EFR32 - for wireless communication in AMI
+    m_mcuDatabase.push_back({
+        "EFR32MG21", MCUFamily::SILABS_EFR32, MCUArchitecture::ARM_CORTEX_M33,
+        1024, 96, 0, 80, 48, 12, 2, 4, 3, 2, 1, true, false, false, true, true,
+        {"QFN68", "BGA125"}, {{"Zigbee", "yes"}, {"Thread", "yes"}, {"Bluetooth", "5.2"}}
     });
 }
 

@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <random>
 #include <iostream>
+#include <complex>
+#include <numeric>
 
 MeteringEngine::MeteringEngine()
     : m_isThreePhase(false)
@@ -56,6 +58,18 @@ void MeteringEngine::reset()
     // Clear measurements
     m_measurements = {};
     
+    // Initialize phasor arrays
+    for (int i = 0; i < 3; i++) {
+        m_measurements.voltagePhasor[i] = {0.0, 0.0, 0.0, 0.0};
+        m_measurements.currentPhasor[i] = {0.0, 0.0, 0.0, 0.0};
+    }
+    
+    // Initialize harmonics arrays
+    for (int i = 0; i < 33; i++) {
+        m_measurements.voltageHarmonics[i] = {0.0, 0.0, 0.0};
+        m_measurements.currentHarmonics[i] = {0.0, 0.0, 0.0};
+    }
+    
     // Clear tamper events
     m_tamperEvents.clear();
     
@@ -64,6 +78,7 @@ void MeteringEngine::reset()
     
     // Clear harmonics
     m_harmonics.clear();
+    m_interharmonics.clear();
     m_noiseAmplitude = 0.0;
 }
 
@@ -141,10 +156,19 @@ void MeteringEngine::generateSignals(double time)
             // Voltage waveform with harmonics and noise
             double voltage = m_configVoltage * sqrt(2.0) * voltageScale * sin(phase + phaseShift);
             
-            // Add harmonics
+            // Add harmonics with phase information
             for (const auto& harmonic : m_harmonics) {
-                voltage += m_configVoltage * sqrt(2.0) * harmonic.second * 
-                          sin(harmonic.first * (phase + phaseShift));
+                double harmonic_magnitude = harmonic.second.first;
+                double harmonic_phase = harmonic.second.second * M_PI / 180.0; // Convert to radians
+                voltage += m_configVoltage * sqrt(2.0) * harmonic_magnitude * 
+                          sin(harmonic.first * (phase + phaseShift) + harmonic_phase);
+            }
+            
+            // Add interharmonics
+            for (const auto& interharm : m_interharmonics) {
+                double freq_ratio = interharm.first / m_configFrequency;
+                voltage += m_configVoltage * sqrt(2.0) * interharm.second * 
+                          sin(freq_ratio * (phase + phaseShift));
             }
             
             // Add noise
@@ -166,10 +190,19 @@ void MeteringEngine::generateSignals(double time)
         // Single-phase signals
         double voltage = m_configVoltage * sqrt(2.0) * voltageScale * sin(phase);
         
-        // Add harmonics
+        // Add harmonics with phase information
         for (const auto& harmonic : m_harmonics) {
-            voltage += m_configVoltage * sqrt(2.0) * harmonic.second * 
-                      sin(harmonic.first * phase);
+            double harmonic_magnitude = harmonic.second.first;
+            double harmonic_phase = harmonic.second.second * M_PI / 180.0; // Convert to radians
+            voltage += m_configVoltage * sqrt(2.0) * harmonic_magnitude * 
+                      sin(harmonic.first * phase + harmonic_phase);
+        }
+        
+        // Add interharmonics
+        for (const auto& interharm : m_interharmonics) {
+            double freq_ratio = interharm.first / m_configFrequency;
+            voltage += m_configVoltage * sqrt(2.0) * interharm.second * 
+                      sin(freq_ratio * phase);
         }
         
         // Add noise
@@ -257,16 +290,27 @@ void MeteringEngine::calculateMeasurements()
         }
     }
     
-    // Calculate THD (simplified)
-    m_measurements.thd_voltage = 0.0;
-    m_measurements.thd_current = 0.0;
+    // Calculate harmonics and phasors
+    calculateHarmonics();
+    calculatePhasors();
+    calculateCrestFactor();
+    calculateKFactor();
+    calculatePowerFactorComponents();
     
-    for (const auto& harmonic : m_harmonics) {
-        if (harmonic.first > 1) { // Exclude fundamental
-            m_measurements.thd_voltage += harmonic.second * harmonic.second;
-        }
+    // Calculate THD from harmonic data
+    double thd_v_squared = 0.0;
+    double thd_i_squared = 0.0;
+    
+    for (int h = 1; h < 33; h++) { // 2nd to 33rd harmonic
+        thd_v_squared += m_measurements.voltageHarmonics[h].magnitude * m_measurements.voltageHarmonics[h].magnitude;
+        thd_i_squared += m_measurements.currentHarmonics[h].magnitude * m_measurements.currentHarmonics[h].magnitude;
     }
-    m_measurements.thd_voltage = sqrt(m_measurements.thd_voltage) * 100.0; // Percentage
+    
+    double fundamental_v = m_measurements.voltageHarmonics[0].magnitude; // 1st harmonic (fundamental)
+    double fundamental_i = m_measurements.currentHarmonics[0].magnitude;
+    
+    m_measurements.thd_voltage = (fundamental_v > 0) ? sqrt(thd_v_squared) / fundamental_v * 100.0 : 0.0;
+    m_measurements.thd_current = (fundamental_i > 0) ? sqrt(thd_i_squared) / fundamental_i * 100.0 : 0.0;
 }
 
 void MeteringEngine::processTamperEvents()
@@ -364,9 +408,16 @@ void MeteringEngine::injectFrequencyVariation(double deviation, double duration)
     m_injections.push_back(injection);
 }
 
-void MeteringEngine::injectHarmonics(int harmonic, double magnitude)
+void MeteringEngine::injectHarmonics(int harmonic, double magnitude, double phase)
 {
-    m_harmonics[harmonic] = magnitude;
+    if (harmonic >= 1 && harmonic <= 33) {
+        m_harmonics[harmonic] = std::make_pair(magnitude, phase);
+    }
+}
+
+void MeteringEngine::injectInterharmonics(double frequency, double magnitude)
+{
+    m_interharmonics[frequency] = magnitude;
 }
 
 void MeteringEngine::injectNoise(double amplitude)
@@ -388,4 +439,170 @@ double MeteringEngine::calculateTHD(const std::vector<double>& samples)
     // Simplified THD calculation
     // In a real implementation, this would use FFT
     return 0.0;
+}
+
+void MeteringEngine::calculateHarmonics()
+{
+    // Simulate harmonic analysis based on injected harmonics
+    // In a real implementation, this would use FFT on the waveform samples
+    
+    // Set fundamental (1st harmonic)
+    m_measurements.voltageHarmonics[0].magnitude = m_measurements.voltageRMS;
+    m_measurements.voltageHarmonics[0].phase = 0.0;
+    m_measurements.voltageHarmonics[0].percentage = 100.0;
+    
+    m_measurements.currentHarmonics[0].magnitude = m_measurements.currentRMS;
+    m_measurements.currentHarmonics[0].phase = -acos(m_configPowerFactor) * 180.0 / M_PI;
+    m_measurements.currentHarmonics[0].percentage = 100.0;
+    
+    // Set harmonics based on injected values
+    for (int h = 1; h < 33; h++) {
+        int harmonic_order = h + 1; // h=0 is fundamental, h=1 is 2nd harmonic, etc.
+        
+        if (m_harmonics.find(harmonic_order) != m_harmonics.end()) {
+            auto harmonic_data = m_harmonics[harmonic_order];
+            
+            m_measurements.voltageHarmonics[h].magnitude = m_measurements.voltageRMS * harmonic_data.first;
+            m_measurements.voltageHarmonics[h].phase = harmonic_data.second;
+            m_measurements.voltageHarmonics[h].percentage = harmonic_data.first * 100.0;
+            
+            m_measurements.currentHarmonics[h].magnitude = m_measurements.currentRMS * harmonic_data.first;
+            m_measurements.currentHarmonics[h].phase = harmonic_data.second;
+            m_measurements.currentHarmonics[h].percentage = harmonic_data.first * 100.0;
+        } else {
+            m_measurements.voltageHarmonics[h] = {0.0, 0.0, 0.0};
+            m_measurements.currentHarmonics[h] = {0.0, 0.0, 0.0};
+        }
+    }
+}
+
+void MeteringEngine::calculatePhasors()
+{
+    if (m_isThreePhase) {
+        // Three-phase phasors
+        for (int ph = 0; ph < 3; ph++) {
+            double phase_shift = ph * 120.0; // 120 degrees phase shift
+            
+            // Voltage phasor
+            m_measurements.voltagePhasor[ph].magnitude = std::abs(m_measurements.voltage[ph]);
+            m_measurements.voltagePhasor[ph].phase = phase_shift;
+            m_measurements.voltagePhasor[ph].real = m_measurements.voltagePhasor[ph].magnitude * 
+                                                   cos(phase_shift * M_PI / 180.0);
+            m_measurements.voltagePhasor[ph].imag = m_measurements.voltagePhasor[ph].magnitude * 
+                                                   sin(phase_shift * M_PI / 180.0);
+            
+            // Current phasor (with power factor lag)
+            double current_phase = phase_shift - acos(m_configPowerFactor) * 180.0 / M_PI;
+            m_measurements.currentPhasor[ph].magnitude = std::abs(m_measurements.current[ph]);
+            m_measurements.currentPhasor[ph].phase = current_phase;
+            m_measurements.currentPhasor[ph].real = m_measurements.currentPhasor[ph].magnitude * 
+                                                   cos(current_phase * M_PI / 180.0);
+            m_measurements.currentPhasor[ph].imag = m_measurements.currentPhasor[ph].magnitude * 
+                                                   sin(current_phase * M_PI / 180.0);
+        }
+    } else {
+        // Single-phase phasors
+        m_measurements.voltagePhasor[0].magnitude = m_measurements.voltageRMS;
+        m_measurements.voltagePhasor[0].phase = 0.0;
+        m_measurements.voltagePhasor[0].real = m_measurements.voltageRMS;
+        m_measurements.voltagePhasor[0].imag = 0.0;
+        
+        double current_phase = -acos(m_configPowerFactor) * 180.0 / M_PI;
+        m_measurements.currentPhasor[0].magnitude = m_measurements.currentRMS;
+        m_measurements.currentPhasor[0].phase = current_phase;
+        m_measurements.currentPhasor[0].real = m_measurements.currentRMS * cos(current_phase * M_PI / 180.0);
+        m_measurements.currentPhasor[0].imag = m_measurements.currentRMS * sin(current_phase * M_PI / 180.0);
+        
+        // Clear unused phases
+        for (int ph = 1; ph < 3; ph++) {
+            m_measurements.voltagePhasor[ph] = {0.0, 0.0, 0.0, 0.0};
+            m_measurements.currentPhasor[ph] = {0.0, 0.0, 0.0, 0.0};
+        }
+    }
+}
+
+void MeteringEngine::calculateCrestFactor()
+{
+    // Simplified crest factor calculation
+    // Crest factor = Peak value / RMS value
+    double voltage_peak = m_measurements.voltageRMS * sqrt(2.0);
+    double current_peak = m_measurements.currentRMS * sqrt(2.0);
+    
+    // Add effect of harmonics to peak value
+    for (int h = 1; h < 33; h++) {
+        voltage_peak += m_measurements.voltageHarmonics[h].magnitude * sqrt(2.0);
+        current_peak += m_measurements.currentHarmonics[h].magnitude * sqrt(2.0);
+    }
+    
+    m_measurements.crest_factor_voltage = (m_measurements.voltageRMS > 0) ? voltage_peak / m_measurements.voltageRMS : 0.0;
+    m_measurements.crest_factor_current = (m_measurements.currentRMS > 0) ? current_peak / m_measurements.currentRMS : 0.0;
+}
+
+void MeteringEngine::calculateKFactor()
+{
+    // K-factor calculation for transformer derating
+    double k_factor = 1.0; // Fundamental contributes 1
+    
+    for (int h = 1; h < 33; h++) {
+        int harmonic_order = h + 1;
+        double harmonic_percentage = m_measurements.currentHarmonics[h].percentage / 100.0;
+        k_factor += harmonic_order * harmonic_order * harmonic_percentage * harmonic_percentage;
+    }
+    
+    m_measurements.k_factor = k_factor;
+}
+
+void MeteringEngine::calculatePowerFactorComponents()
+{
+    // Displacement power factor (fundamental component only)
+    m_measurements.displacement_pf = m_configPowerFactor;
+    
+    // Distortion power factor (effect of harmonics)
+    double total_rms_squared = m_measurements.currentHarmonics[0].magnitude * m_measurements.currentHarmonics[0].magnitude;
+    double harmonic_rms_squared = 0.0;
+    
+    for (int h = 1; h < 33; h++) {
+        double harmonic_rms = m_measurements.currentHarmonics[h].magnitude;
+        harmonic_rms_squared += harmonic_rms * harmonic_rms;
+        total_rms_squared += harmonic_rms * harmonic_rms;
+    }
+    
+    double fundamental_rms = m_measurements.currentHarmonics[0].magnitude;
+    m_measurements.distortion_pf = (total_rms_squared > 0) ? fundamental_rms / sqrt(total_rms_squared) : 1.0;
+}
+
+std::vector<HarmonicData> MeteringEngine::getVoltageHarmonics() const
+{
+    std::vector<HarmonicData> harmonics;
+    for (int i = 0; i < 33; i++) {
+        harmonics.push_back(m_measurements.voltageHarmonics[i]);
+    }
+    return harmonics;
+}
+
+std::vector<HarmonicData> MeteringEngine::getCurrentHarmonics() const
+{
+    std::vector<HarmonicData> harmonics;
+    for (int i = 0; i < 33; i++) {
+        harmonics.push_back(m_measurements.currentHarmonics[i]);
+    }
+    return harmonics;
+}
+
+std::vector<PhasorData> MeteringEngine::getVoltagePhasors() const
+{
+    std::vector<PhasorData> phasors;
+    for (int i = 0; i < 3; i++) {
+        phasors.push_back(m_measurements.voltagePhasor[i]);
+    }
+    return phasors;
+}
+
+std::vector<PhasorData> MeteringEngine::getCurrentPhasors() const
+{
+    std::vector<PhasorData> phasors;
+    for (int i = 0; i < 3; i++) {
+        phasors.push_back(m_measurements.currentPhasor[i]);
+    }
+    return phasors;
 }
