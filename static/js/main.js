@@ -37,6 +37,9 @@ class SmartMeterSimulator {
         this.initializeCharts();
         this.setupCircuitDesign();
         this.startUpdateLoop();
+        
+        // Initialize default tab
+        this.switchTab('firmware');
     }
 
     setupEventListeners() {
@@ -96,8 +99,12 @@ class SmartMeterSimulator {
         navItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const tabName = item.dataset.tab;
-                this.switchTab(tabName);
+                if (tabName) {
+                    console.log('Nav item clicked:', tabName);
+                    this.switchTab(tabName);
+                }
             });
         });
         
@@ -105,8 +112,12 @@ class SmartMeterSimulator {
         tabBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const tabName = btn.dataset.tab;
-                this.switchTab(tabName);
+                if (tabName) {
+                    console.log('Tab button clicked:', tabName);
+                    this.switchTab(tabName);
+                }
             });
         });
     }
