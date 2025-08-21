@@ -72,44 +72,26 @@ start = "ccls"
 runButton = "Web Simulator"
 
 [[workflows.workflow]]
-name = "Build and Run"
-author = 18652289
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "make"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "./smart_meter_simulator"
-
-[[workflows.workflow]]
-name = "Build and Run Extended Simulator"
-author = 18652289
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pkg-config --cflags --libs Qt5Widgets Qt5Gui Qt5Core > qt_flags.txt"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "g++ -std=c++17 -g -Wall $(cat qt_flags.txt) -fPIC -o smart_meter_simulator main.cpp simulator_core.cpp mcu_emulator.cpp metering_engine.cpp protocol_handler.cpp component_library.cpp property_editor.cpp measurement_tools.cpp extended_mcu_support.cpp"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "./smart_meter_simulator"
-
-[[workflows.workflow]]
 name = "Web Simulator"
 author = 18652289
 mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pip install -r requirements.txt"
+args = "python3 -m pip install --upgrade pip"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python app.py"
+args = "python3 -m pip install -r requirements.txt"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "mkdir -p templates"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cp index.html templates/"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"

@@ -366,18 +366,11 @@ def export_csv():
     return response
 
 if __name__ == '__main__':
-    # Create templates directory
+    # Create required directories
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
     
-    # Copy index.html to templates directory
-    try:
-        with open('index.html', 'r') as f:
-            content = f.read()
-        with open('templates/index.html', 'w') as f:
-            f.write(content)
-    except FileNotFoundError:
-        pass
-    
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("Starting Smart Meter Firmware Simulator...")
+    print("Access the simulator at: http://localhost:5000")
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
