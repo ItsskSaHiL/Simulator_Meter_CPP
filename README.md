@@ -65,7 +65,45 @@ sudo apt update
 sudo apt install build-essential qt5-default qtbase5-dev pkg-config
 ```
 
+### macOS Installation
+
+#### Option 1: Using Homebrew (Recommended)
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install required dependencies
+brew install qt5 pkg-config cmake
+brew install gcc  # Optional: for GCC compiler
+
+# Set Qt5 environment variables
+echo 'export PATH="/usr/local/opt/qt5/bin:$PATH"' >> ~/.zshrc
+echo 'export PKG_CONFIG_PATH="/usr/local/opt/qt5/lib/pkgconfig:$PKG_CONFIG_PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Option 2: Using MacPorts
+```bash
+# Install MacPorts if not already installed
+# Download from https://www.macports.org/install.php
+
+# Install dependencies
+sudo port install qt5-mac pkg-config
+```
+
+#### Option 3: Manual Qt5 Installation
+```bash
+# Download Qt5 from https://www.qt.io/download-qt-installer
+# Install to default location: /Applications/Qt/
+
+# Add to your shell profile (~/.zshrc or ~/.bash_profile)
+export PATH="/Applications/Qt/5.15.2/clang_64/bin:$PATH"
+export Qt5_DIR="/Applications/Qt/5.15.2/clang_64/lib/cmake/Qt5"
+```
+
 ### Build Commands
+
+#### For Linux/Ubuntu
 ```bash
 # Build the simulator
 make
@@ -78,6 +116,89 @@ make run
 
 # Clean build files
 make clean
+```
+
+#### For macOS
+```bash
+# Using Homebrew Qt5
+export PATH="/usr/local/opt/qt5/bin:$PATH"
+export PKG_CONFIG_PATH="/usr/local/opt/qt5/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+# Build the simulator
+make
+
+# Build with debug information
+make debug
+
+# Build and run
+make run
+
+# Clean build files
+make clean
+```
+
+### Web Application (Cross-Platform)
+
+The web version works on all platforms including Mac. Follow these steps:
+
+#### Prerequisites for Web Version
+```bash
+# On macOS, install Python 3 if not already installed
+brew install python3
+
+# Or use the system Python 3 (macOS 10.15+)
+python3 --version
+```
+
+#### Running the Web Simulator
+```bash
+# Install Python dependencies
+pip3 install -r requirements.txt
+
+# Create templates directory and copy HTML file
+mkdir -p templates
+cp index.html templates/
+
+# Start the web server
+python3 app.py
+```
+
+#### Access the Web Simulator
+Open your web browser and navigate to:
+- Local access: `http://localhost:5000`
+- Network access: `http://your-mac-ip:5000`
+
+To find your Mac's IP address:
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+```
+
+## Quick Start (macOS)
+
+For Mac users who want to get started quickly with the web version:
+
+```bash
+# 1. Install Python dependencies
+pip3 install flask
+
+# 2. Run the web simulator
+python3 app.py
+
+# 3. Open your browser to http://localhost:5000
+```
+
+**That's it!** The web simulator will start and you can begin testing smart meter firmware.
+
+### Desktop Version (Advanced Mac Users)
+```bash
+# 1. Install Qt5 via Homebrew
+brew install qt5
+
+# 2. Set environment variables
+export PATH="/usr/local/opt/qt5/bin:$PATH"
+
+# 3. Build and run
+make && ./main
 ```
 
 ## Usage
@@ -195,6 +316,46 @@ The simulator includes several test scenarios:
    - Install Qt5 development packages
    - Update pkg-config database
    - Check compiler version compatibility
+
+#### Mac-Specific Issues
+
+4. **Qt5 Not Found on macOS**:
+   ```bash
+   # If using Homebrew
+   brew link qt5 --force
+   export PATH="/usr/local/opt/qt5/bin:$PATH"
+   
+   # Check Qt5 installation
+   qmake --version
+   ```
+
+5. **Command Line Tools Missing**:
+   ```bash
+   # Install Xcode Command Line Tools
+   xcode-select --install
+   ```
+
+6. **Python Issues on macOS**:
+   ```bash
+   # Use Python 3 explicitly
+   python3 -m pip install -r requirements.txt
+   python3 app.py
+   
+   # If pip3 is missing
+   brew install python3
+   ```
+
+7. **Port Access Issues**:
+   - Ensure port 5000 is not blocked by macOS firewall
+   - Check System Preferences > Security & Privacy > Firewall
+   - Allow Python through firewall if prompted
+
+8. **Permission Issues**:
+   ```bash
+   # Fix file permissions
+   chmod +x main
+   chmod 755 static/js/*.js
+   ```
 
 ### Debug Mode
 Build with debug information for detailed logging:
