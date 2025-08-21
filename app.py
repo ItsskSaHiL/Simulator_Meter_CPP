@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 import json
@@ -370,7 +369,46 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
+       # python
+    if __name__ == '__main__':
+        import os
+        import argparse
+        import sys
     
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--port", type=int, help="Port to run the server on")
+        parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"))
+        args = parser.parse_args()
+    
+        # Create required directories
+        os.makedirs('templates', exist_ok=True)
+        os.makedirs('static/css', exist_ok=True)
+        os.makedirs('static/js', exist_ok=True)
+    
+        port = args.port or int(os.environ.get("PORT", 5000))
+        debug = bool(int(os.environ.get("FLASK_DEBUG", "1")))
+    
+        # When Flask debug is on, the reloader spawns a child process.
+        # Only print startup messages from the reloader child to avoid duplicates.
+        is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not debug
+        if is_reloader_child:
+            print("Starting Smart Meter Firmware Simulator...")
+            print(f"Access the simulator at: http://{args.host}:{port}")
+    
+        try:
+            app.run(host=args.host, port=port, debug=debug, threaded=True)
+        except OSError as e:
+            err_no = getattr(e, "errno", None)
+            if err_no in (48, 98):  # macOS/Linux "Address already in use"
+                print(f"Error: Port {port} is already in use.")
+                print("Options:")
+                print(f"  - Run on a different port: python3 app.py --port 5001")
+                print(f"  - Or kill the process using the port (macOS):")
+                print(f"      lsof -nP -iTCP:{port} -sTCP:LISTEN")
+                print("      kill <PID>")
+                print("  - Or disable conflicting services (e.g. AirPlay Receiver in System Settings -> General -> Sharing).")
+                sys.exit(1)
+            raise 
     print("Starting Smart Meter Firmware Simulator...")
     print("Access the simulator at: http://localhost:5000")
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
