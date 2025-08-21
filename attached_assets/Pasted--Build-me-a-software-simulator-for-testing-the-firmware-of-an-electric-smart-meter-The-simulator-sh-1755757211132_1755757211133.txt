@@ -1,0 +1,59 @@
+"Build me a software simulator for testing the firmware of an electric smart meter. The simulator should:
+
+Firmware Loading
+
+Accept .hex or .bin firmware files.
+
+Allow me to specify the target microcontroller family, part number, package, and architecture (e.g., ARM Cortex-M4 STM32F407 100-pin, Renesas RL78/I1C, etc.).
+
+Emulate flash/ROM/RAM so firmware can execute realistically.
+
+Hardware & Peripheral Simulation
+
+Emulate essential MCU peripherals:
+
+UART/I2C/SPI/CAN with interactive terminals.
+
+ADC/DAC with configurable voltage/current waveforms.
+
+Timers/PWM/GPIO with user control.
+
+Provide virtual connectors for UART/RS485 terminals to test communication.
+
+Metering Features
+
+Simulate single-phase and three-phase AC inputs (voltage, current, frequency, harmonics).
+
+Provide configurable tamper events (e.g., magnet tamper, reverse current, neutral missing).
+
+Emulate relay on/off behavior and measure load disconnect.
+
+Communication Protocols
+
+Add built-in support for DLMS/COSEM, Modbus, IEC 62056, and allow extension for custom protocols.
+
+Provide a virtual CLI or GUI to send/receive protocol frames.
+
+User Interface
+
+Display real-time ADC values, voltages, currents, power factor, and energy readings.
+
+Provide a GUI/CLI dashboard with configurable meters, graphs, and event logs.
+
+Allow me to script automated test cases.
+
+Configurability
+
+Support multiple hardware boards and architectures by defining a JSON/YAML config (pins, peripherals, voltage scaling).
+
+Modular design so new MCUs, peripherals, and comm protocols can be added easily.
+
+Extra
+
+Provide logging, root-cause analysis (error, fault states).
+
+Allow signal injection (voltage dips, noise, tamper) to see firmware response.
+
+Export results to .csv/.json for debugging.
+
+The result should be a cross-platform simulator (Linux/Windows), written in a language like C++/Python (with SDL/Qt for GUI) or WebAssembly for browser-based simulation. It must be modular, efficient, and suitable for validating embedded smart meter firmware without physical hardware."
