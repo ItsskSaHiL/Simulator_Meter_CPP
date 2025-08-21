@@ -1,0 +1,535 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Meter Firmware Simulator</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-microchip"></i> Smart Meter Firmware Simulator</h1>
+                <div class="header-controls">
+                    <button id="loadFirmware" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Load Firmware
+                    </button>
+                    <button id="startSimulation" class="btn btn-success" disabled>
+                        <i class="fas fa-play"></i> Start
+                    </button>
+                    <button id="stopSimulation" class="btn btn-danger" disabled>
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                    <button id="resetSimulation" class="btn btn-warning">
+                        <i class="fas fa-refresh"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item active" data-tab="firmware">
+                        <i class="fas fa-microchip"></i> Firmware
+                    </li>
+                    <li class="nav-item" data-tab="metering">
+                        <i class="fas fa-bolt"></i> Metering
+                    </li>
+                    <li class="nav-item" data-tab="circuit">
+                        <i class="fas fa-project-diagram"></i> Circuit Design
+                    </li>
+                    <li class="nav-item" data-tab="measurements">
+                        <i class="fas fa-chart-line"></i> Measurements
+                    </li>
+                    <li class="nav-item" data-tab="peripherals">
+                        <i class="fas fa-cogs"></i> Peripherals
+                    </li>
+                    <li class="nav-item" data-tab="protocols">
+                        <i class="fas fa-network-wired"></i> Protocols
+                    </li>
+                    <li class="nav-item" data-tab="logging">
+                        <i class="fas fa-file-alt"></i> Logging
+                    </li>
+                    <li class="nav-item" data-tab="automation">
+                        <i class="fas fa-robot"></i> Automation
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Firmware Tab -->
+                <div id="firmware-tab" class="tab-content active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Firmware Configuration</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Firmware File:</label>
+                                    <input type="file" id="firmwareFile" accept=".hex,.bin" class="file-input">
+                                </div>
+                                <div class="form-group">
+                                    <label>MCU Family:</label>
+                                    <select id="mcuFamily" class="select-input">
+                                        <option value="STM32F4">STM32F4</option>
+                                        <option value="STM32G0">STM32G0</option>
+                                        <option value="ESP32">ESP32</option>
+                                        <option value="RL78">Renesas RL78</option>
+                                        <option value="MSP430">TI MSP430</option>
+                                        <option value="RISC-V">RISC-V</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Part Number:</label>
+                                    <select id="partNumber" class="select-input">
+                                        <option value="STM32F407VG">STM32F407VG</option>
+                                        <option value="STM32G071RB">STM32G071RB</option>
+                                        <option value="ESP32-WROOM-32">ESP32-WROOM-32</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Architecture:</label>
+                                    <select id="architecture" class="select-input">
+                                        <option value="ARM Cortex-M4">ARM Cortex-M4</option>
+                                        <option value="ARM Cortex-M0+">ARM Cortex-M0+</option>
+                                        <option value="Xtensa LX6">Xtensa LX6</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="status-section">
+                                <div class="status-indicator">
+                                    <span id="simulationStatus" class="status-badge status-stopped">Stopped</span>
+                                </div>
+                                <div class="progress-container">
+                                    <div id="simulationProgress" class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metering Tab -->
+                <div id="metering-tab" class="tab-content">
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>AC Input Configuration</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Phase Configuration:</label>
+                                        <select id="phaseConfig" class="select-input">
+                                            <option value="single">Single Phase</option>
+                                            <option value="three">Three Phase</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Voltage (V):</label>
+                                        <input type="number" id="voltageInput" value="230" min="0" max="500" class="number-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Current (A):</label>
+                                        <input type="number" id="currentInput" value="5" min="0" max="100" step="0.1" class="number-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Frequency (Hz):</label>
+                                        <input type="number" id="frequencyInput" value="50" min="45" max="65" step="0.01" class="number-input">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Power Factor:</label>
+                                        <input type="number" id="powerFactorInput" value="0.95" min="0" max="1" step="0.01" class="number-input">
+                                    </div>
+                                </div>
+                                <div class="tamper-section">
+                                    <h4>Tamper Events</h4>
+                                    <div class="form-group">
+                                        <select id="tamperType" class="select-input">
+                                            <option value="magnet">Magnet Tamper</option>
+                                            <option value="reverse">Reverse Current</option>
+                                            <option value="neutral">Neutral Missing</option>
+                                            <option value="phase">Phase Loss</option>
+                                            <option value="overvoltage">Over Voltage</option>
+                                        </select>
+                                        <button id="injectTamper" class="btn btn-warning">Inject Tamper</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Real-time Measurements</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="measurements-grid">
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Voltage RMS:</span>
+                                        <span id="voltageRMS" class="measurement-value">0.00 V</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Current RMS:</span>
+                                        <span id="currentRMS" class="measurement-value">0.00 A</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Active Power:</span>
+                                        <span id="activePower" class="measurement-value">0.00 W</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Reactive Power:</span>
+                                        <span id="reactivePower" class="measurement-value">0.00 VAR</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Apparent Power:</span>
+                                        <span id="apparentPower" class="measurement-value">0.00 VA</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Power Factor:</span>
+                                        <span id="powerFactor" class="measurement-value">0.00</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Frequency:</span>
+                                        <span id="frequency" class="measurement-value">0.00 Hz</span>
+                                    </div>
+                                    <div class="measurement-item">
+                                        <span class="measurement-label">Energy:</span>
+                                        <span id="energy" class="measurement-value">0.00 kWh</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card full-width">
+                            <div class="card-header">
+                                <h3>Waveforms</h3>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="waveformChart" width="800" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circuit Design Tab -->
+                <div id="circuit-tab" class="tab-content">
+                    <div class="circuit-design-container">
+                        <div class="component-library">
+                            <h3>Component Library</h3>
+                            <div class="component-groups">
+                                <div class="component-group">
+                                    <h4>Passive Components</h4>
+                                    <div class="component-grid">
+                                        <div class="component-item" data-type="resistor">
+                                            <i class="fas fa-wave-square"></i>
+                                            <span>Resistor</span>
+                                        </div>
+                                        <div class="component-item" data-type="capacitor">
+                                            <i class="fas fa-battery-half"></i>
+                                            <span>Capacitor</span>
+                                        </div>
+                                        <div class="component-item" data-type="inductor">
+                                            <i class="fas fa-circle"></i>
+                                            <span>Inductor</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="component-group">
+                                    <h4>Active Components</h4>
+                                    <div class="component-grid">
+                                        <div class="component-item" data-type="diode">
+                                            <i class="fas fa-play"></i>
+                                            <span>Diode</span>
+                                        </div>
+                                        <div class="component-item" data-type="led">
+                                            <i class="fas fa-lightbulb"></i>
+                                            <span>LED</span>
+                                        </div>
+                                        <div class="component-item" data-type="transistor">
+                                            <i class="fas fa-microchip"></i>
+                                            <span>Transistor</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="component-group">
+                                    <h4>Power Sources</h4>
+                                    <div class="component-grid">
+                                        <div class="component-item" data-type="dc-source">
+                                            <i class="fas fa-battery-full"></i>
+                                            <span>DC Source</span>
+                                        </div>
+                                        <div class="component-item" data-type="ac-source">
+                                            <i class="fas fa-bolt"></i>
+                                            <span>AC Source</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="circuit-canvas-container">
+                            <canvas id="circuitCanvas" width="800" height="600"></canvas>
+                        </div>
+                        <div class="property-editor">
+                            <h3>Properties</h3>
+                            <div id="propertyPanel" class="property-panel">
+                                <p>Select a component to edit properties</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Measurements Tab -->
+                <div id="measurements-tab" class="tab-content">
+                    <div class="measurements-dashboard">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Virtual Oscilloscope</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="oscilloscope-controls">
+                                    <div class="control-group">
+                                        <label>Time/Div:</label>
+                                        <select id="timeDiv" class="select-input">
+                                            <option value="1">1 ms/div</option>
+                                            <option value="2">2 ms/div</option>
+                                            <option value="5">5 ms/div</option>
+                                            <option value="10" selected>10 ms/div</option>
+                                        </select>
+                                    </div>
+                                    <div class="control-group">
+                                        <label>Voltage/Div:</label>
+                                        <select id="voltageDiv" class="select-input">
+                                            <option value="50">50 V/div</option>
+                                            <option value="100" selected>100 V/div</option>
+                                            <option value="200">200 V/div</option>
+                                        </select>
+                                    </div>
+                                    <button id="triggerSingle" class="btn btn-primary">Single Trigger</button>
+                                    <button id="triggerAuto" class="btn btn-secondary">Auto Trigger</button>
+                                </div>
+                                <canvas id="oscilloscopeChart" width="800" height="400"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Virtual Multimeter</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="multimeter-display">
+                                    <div class="main-reading">
+                                        <span id="multimeterReading">0.000</span>
+                                        <span id="multimeterUnit">V</span>
+                                    </div>
+                                    <div class="multimeter-controls">
+                                        <select id="multimeterMode" class="select-input">
+                                            <option value="dcv">DC Voltage</option>
+                                            <option value="acv">AC Voltage</option>
+                                            <option value="dca">DC Current</option>
+                                            <option value="aca">AC Current</option>
+                                            <option value="resistance">Resistance</option>
+                                            <option value="frequency">Frequency</option>
+                                        </select>
+                                        <select id="multimeterRange" class="select-input">
+                                            <option value="auto">Auto Range</option>
+                                            <option value="200m">200 mV</option>
+                                            <option value="2">2 V</option>
+                                            <option value="20">20 V</option>
+                                            <option value="200">200 V</option>
+                                            <option value="1000">1000 V</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Logic Analyzer</h3>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="logicAnalyzerChart" width="800" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peripherals Tab -->
+                <div id="peripherals-tab" class="tab-content">
+                    <div class="peripherals-dashboard">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>UART Terminal</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="terminal-container">
+                                    <div id="uartTerminal" class="terminal-output"></div>
+                                    <div class="terminal-input">
+                                        <input type="text" id="uartInput" placeholder="Enter command..." class="terminal-input-field">
+                                        <button id="sendUart" class="btn btn-primary">Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>GPIO Status</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="gpioTable" class="gpio-grid"></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>ADC Channels</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="adcTable" class="adc-grid"></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Timer Status</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="timerTable" class="timer-grid"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Protocols Tab -->
+                <div id="protocols-tab" class="tab-content">
+                    <div class="protocols-dashboard">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Protocol Interface</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="protocol-controls">
+                                    <div class="form-group">
+                                        <label>Protocol:</label>
+                                        <select id="protocolType" class="select-input">
+                                            <option value="dlms">DLMS/COSEM</option>
+                                            <option value="modbus-rtu">Modbus RTU</option>
+                                            <option value="modbus-tcp">Modbus TCP</option>
+                                            <option value="iec62056">IEC 62056</option>
+                                            <option value="custom">Custom</option>
+                                        </select>
+                                    </div>
+                                    <div class="command-input">
+                                        <input type="text" id="protocolCommand" placeholder="Enter command..." class="text-input">
+                                        <button id="sendProtocolCommand" class="btn btn-primary">Send</button>
+                                    </div>
+                                </div>
+                                <div class="protocol-response">
+                                    <h4>Response:</h4>
+                                    <div id="protocolResponse" class="response-output"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Protocol Log</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="protocolLog" class="protocol-log"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logging Tab -->
+                <div id="logging-tab" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>System Log</h3>
+                            <div class="card-actions">
+                                <button id="exportLog" class="btn btn-secondary">
+                                    <i class="fas fa-download"></i> Export CSV
+                                </button>
+                                <button id="clearLog" class="btn btn-warning">
+                                    <i class="fas fa-trash"></i> Clear Log
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="systemLog" class="system-log"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Automation Tab (New Feature) -->
+                <div id="automation-tab" class="tab-content">
+                    <div class="automation-dashboard">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Test Automation</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="automation-controls">
+                                    <button id="createTestScript" class="btn btn-primary">Create Test Script</button>
+                                    <button id="runTestSuite" class="btn btn-success">Run Test Suite</button>
+                                    <button id="scheduleTests" class="btn btn-secondary">Schedule Tests</button>
+                                </div>
+                                <div class="test-scripts">
+                                    <h4>Available Test Scripts</h4>
+                                    <div id="testScriptsList" class="test-scripts-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Performance Monitoring</h3>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="performanceChart" width="800" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="firmwareModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Load Firmware</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Select a firmware file (.hex or .bin) to load into the simulator.</p>
+                <div class="file-drop-zone" id="fileDropZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop firmware file here or click to browse</p>
+                    <input type="file" id="firmwareFileInput" accept=".hex,.bin" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/main.js"></script>
+    <script src="static/js/simulator.js"></script>
+    <script src="static/js/circuit.js"></script>
+    <script src="static/js/charts.js"></script>
+</body>
+</html>

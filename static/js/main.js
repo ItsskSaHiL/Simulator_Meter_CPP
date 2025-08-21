@@ -1,0 +1,750 @@
+
+// Main Application Controller
+class SmartMeterSimulator {
+    constructor() {
+        this.isRunning = false;
+        this.currentTab = 'firmware';
+        this.simulationData = {
+            voltage: 230,
+            current: 5,
+            frequency: 50,
+            powerFactor: 0.95,
+            measurements: {
+                voltageRMS: 0,
+                currentRMS: 0,
+                activePower: 0,
+                reactivePower: 0,
+                apparentPower: 0,
+                powerFactor: 0,
+                frequency: 0,
+                energy: 0
+            }
+        };
+        
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupTabs();
+        this.initializeCharts();
+        this.setupCircuitDesign();
+        this.startUpdateLoop();
+    }
+
+    setupEventListeners() {
+        // Header controls
+        document.getElementById('loadFirmware').addEventListener('click', () => this.showFirmwareModal());
+        document.getElementById('startSimulation').addEventListener('click', () => this.startSimulation());
+        document.getElementById('stopSimulation').addEventListener('click', () => this.stopSimulation());
+        document.getElementById('resetSimulation').addEventListener('click', () => this.resetSimulation());
+
+        // Firmware file upload
+        document.getElementById('firmwareFile').addEventListener('change', (e) => this.handleFirmwareUpload(e));
+
+        // Metering controls
+        document.getElementById('voltageInput').addEventListener('input', (e) => this.updateVoltage(e.target.value));
+        document.getElementById('currentInput').addEventListener('input', (e) => this.updateCurrent(e.target.value));
+        document.getElementById('frequencyInput').addEventListener('input', (e) => this.updateFrequency(e.target.value));
+        document.getElementById('powerFactorInput').addEventListener('input', (e) => this.updatePowerFactor(e.target.value));
+        document.getElementById('injectTamper').addEventListener('click', () => this.injectTamperEvent());
+
+        // UART terminal
+        document.getElementById('sendUart').addEventListener('click', () => this.sendUartCommand());
+        document.getElementById('uartInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.sendUartCommand();
+        });
+
+        // Protocol interface
+        document.getElementById('sendProtocolCommand').addEventListener('click', () => this.sendProtocolCommand());
+        document.getElementById('protocolCommand').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.sendProtocolCommand();
+        });
+
+        // Log controls
+        document.getElementById('exportLog').addEventListener('click', () => this.exportLog());
+        document.getElementById('clearLog').addEventListener('click', () => this.clearLog());
+
+        // Modal controls
+        document.querySelector('.close').addEventListener('click', () => this.closeFirmwareModal());
+        document.getElementById('fileDropZone').addEventListener('click', () => {
+            document.getElementById('firmwareFileInput').click();
+        });
+        document.getElementById('firmwareFileInput').addEventListener('change', (e) => this.handleFirmwareUpload(e));
+
+        // Drag and drop
+        this.setupDragAndDrop();
+    }
+
+    setupTabs() {
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tabName = item.dataset.tab;
+                this.switchTab(tabName);
+            });
+        });
+    }
+
+    switchTab(tabName) {
+        // Update navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.tab === tabName) {
+                item.classList.add('active');
+            }
+        });
+
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        this.currentTab = tabName;
+    }
+
+    showFirmwareModal() {
+        document.getElementById('firmwareModal').style.display = 'block';
+    }
+
+    closeFirmwareModal() {
+        document.getElementById('firmwareModal').style.display = 'none';
+    }
+
+    setupDragAndDrop() {
+        const dropZone = document.getElementById('fileDropZone');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#e3f2fd';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.background = '#f8f9fa';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#f8f9fa';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.processFirmwareFile(files[0]);
+            }
+        });
+    }
+
+    handleFirmwareUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.processFirmwareFile(file);
+        }
+    }
+
+    processFirmwareFile(file) {
+        const validExtensions = ['.hex', '.bin'];
+        const fileName = file.name.toLowerCase();
+        const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+
+        if (!isValid) {
+            this.logMessage('Error: Invalid firmware file format. Please select a .hex or .bin file.', 'error');
+            return;
+        }
+
+        this.logMessage(`Firmware file loaded: ${file.name}`, 'info');
+        document.getElementById('startSimulation').disabled = false;
+        this.closeFirmwareModal();
+        
+        // Update status
+        document.getElementById('simulationStatus').textContent = 'Firmware Loaded';
+        document.getElementById('simulationStatus').className = 'status-badge status-paused';
+    }
+
+    startSimulation() {
+        if (this.isRunning) return;
+
+        this.isRunning = true;
+        document.getElementById('startSimulation').disabled = true;
+        document.getElementById('stopSimulation').disabled = false;
+        document.getElementById('simulationStatus').textContent = 'Running';
+        document.getElementById('simulationStatus').className = 'status-badge status-running';
+
+        this.logMessage('Simulation started', 'info');
+        this.updateProgress(0);
+    }
+
+    stopSimulation() {
+        if (!this.isRunning) return;
+
+        this.isRunning = false;
+        document.getElementById('startSimulation').disabled = false;
+        document.getElementById('stopSimulation').disabled = true;
+        document.getElementById('simulationStatus').textContent = 'Stopped';
+        document.getElementById('simulationStatus').className = 'status-badge status-stopped';
+
+        this.logMessage('Simulation stopped', 'info');
+    }
+
+    resetSimulation() {
+        this.stopSimulation();
+        this.simulationData.measurements = {
+            voltageRMS: 0,
+            currentRMS: 0,
+            activePower: 0,
+            reactivePower: 0,
+            apparentPower: 0,
+            powerFactor: 0,
+            frequency: 0,
+            energy: 0
+        };
+        this.updateProgress(0);
+        this.logMessage('Simulation reset', 'info');
+    }
+
+    updateVoltage(value) {
+        this.simulationData.voltage = parseFloat(value);
+    }
+
+    updateCurrent(value) {
+        this.simulationData.current = parseFloat(value);
+    }
+
+    updateFrequency(value) {
+        this.simulationData.frequency = parseFloat(value);
+    }
+
+    updatePowerFactor(value) {
+        this.simulationData.powerFactor = parseFloat(value);
+    }
+
+    injectTamperEvent() {
+        const tamperType = document.getElementById('tamperType').value;
+        this.logMessage(`Tamper event injected: ${tamperType}`, 'warning');
+    }
+
+    sendUartCommand() {
+        const input = document.getElementById('uartInput');
+        const command = input.value.trim();
+        
+        if (command) {
+            this.addToTerminal(`TX: ${command}`);
+            input.value = '';
+            
+            // Simulate response
+            setTimeout(() => {
+                this.addToTerminal(`RX: ECHO: ${command}`);
+            }, 100);
+        }
+    }
+
+    addToTerminal(message) {
+        const terminal = document.getElementById('uartTerminal');
+        const timestamp = new Date().toLocaleTimeString();
+        terminal.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    sendProtocolCommand() {
+        const input = document.getElementById('protocolCommand');
+        const command = input.value.trim();
+        const protocol = document.getElementById('protocolType').value;
+        
+        if (command) {
+            this.logProtocol(`[${protocol.toUpperCase()}] TX: ${command}`);
+            input.value = '';
+            
+            // Simulate protocol response
+            setTimeout(() => {
+                const response = this.generateProtocolResponse(protocol, command);
+                this.logProtocol(`[${protocol.toUpperCase()}] RX: ${response}`);
+                document.getElementById('protocolResponse').textContent = response;
+            }, 200);
+        }
+    }
+
+    generateProtocolResponse(protocol, command) {
+        switch (protocol) {
+            case 'dlms':
+                if (command.startsWith('GET')) {
+                    return 'DLMS Response: 1.0.1.8.0.255 = 12345.678*kWh';
+                }
+                return 'DLMS Response: OK';
+            
+            case 'modbus-rtu':
+                return '01 03 02 0C 35 A1';
+            
+            case 'iec62056':
+                if (command === '/?!') {
+                    return '/SMT5\\2@1234567890';
+                }
+                return 'IEC Response: OK';
+            
+            default:
+                return 'OK';
+        }
+    }
+
+    logProtocol(message) {
+        const log = document.getElementById('protocolLog');
+        const timestamp = new Date().toLocaleTimeString();
+        log.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    logMessage(message, type = 'info') {
+        const log = document.getElementById('systemLog');
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = type === 'error' ? '[ERROR]' : type === 'warning' ? '[WARN]' : '[INFO]';
+        log.innerHTML += `<div>[${timestamp}] ${prefix} ${message}</div>`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    exportLog() {
+        const log = document.getElementById('systemLog');
+        const content = log.textContent;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `simulation_log_${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        
+        URL.revokeObjectURL(url);
+    }
+
+    clearLog() {
+        document.getElementById('systemLog').innerHTML = '';
+    }
+
+    updateProgress(value) {
+        const fill = document.querySelector('.progress-fill');
+        fill.style.width = `${value}%`;
+    }
+
+    initializeCharts() {
+        this.setupWaveformChart();
+        this.setupOscilloscopeChart();
+        this.setupPerformanceChart();
+    }
+
+    setupWaveformChart() {
+        const ctx = document.getElementById('waveformChart').getContext('2d');
+        this.waveformChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 100}, (_, i) => i),
+                datasets: [{
+                    label: 'Voltage',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Current',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    setupOscilloscopeChart() {
+        const ctx = document.getElementById('oscilloscopeChart').getContext('2d');
+        this.oscilloscopeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 200}, (_, i) => i),
+                datasets: [{
+                    label: 'Channel 1',
+                    data: [],
+                    borderColor: 'rgb(255, 255, 0)',
+                    backgroundColor: 'rgba(255, 255, 0, 0.1)',
+                    tension: 0
+                }, {
+                    label: 'Channel 2',
+                    data: [],
+                    borderColor: 'rgb(0, 255, 255)',
+                    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                    tension: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.3)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.3)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    setupPerformanceChart() {
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        this.performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Memory Usage (%)',
+                    data: [],
+                    borderColor: 'rgb(255, 159, 64)',
+                    backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+
+    setupCircuitDesign() {
+        // Initialize Fabric.js canvas for circuit design
+        this.circuitCanvas = new fabric.Canvas('circuitCanvas');
+        this.circuitCanvas.setBackgroundColor('#f8f9fa', this.circuitCanvas.renderAll.bind(this.circuitCanvas));
+        
+        // Add grid
+        this.addGrid();
+        
+        // Setup component drag and drop
+        this.setupComponentLibrary();
+    }
+
+    addGrid() {
+        const gridSize = 20;
+        const canvas = this.circuitCanvas;
+        const width = canvas.getWidth();
+        const height = canvas.getHeight();
+
+        // Vertical lines
+        for (let i = 0; i <= width; i += gridSize) {
+            canvas.add(new fabric.Line([i, 0, i, height], {
+                stroke: '#e0e0e0',
+                strokeWidth: 1,
+                selectable: false,
+                evented: false
+            }));
+        }
+
+        // Horizontal lines
+        for (let i = 0; i <= height; i += gridSize) {
+            canvas.add(new fabric.Line([0, i, width, i], {
+                stroke: '#e0e0e0',
+                strokeWidth: 1,
+                selectable: false,
+                evented: false
+            }));
+        }
+    }
+
+    setupComponentLibrary() {
+        const componentItems = document.querySelectorAll('.component-item');
+        componentItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const componentType = item.dataset.type;
+                this.addComponentToCanvas(componentType);
+            });
+        });
+    }
+
+    addComponentToCanvas(type) {
+        let component;
+        
+        switch (type) {
+            case 'resistor':
+                component = new fabric.Rect({
+                    left: 100,
+                    top: 100,
+                    width: 60,
+                    height: 20,
+                    fill: 'white',
+                    stroke: 'black',
+                    strokeWidth: 2
+                });
+                break;
+            
+            case 'capacitor':
+                component = new fabric.Group([
+                    new fabric.Line([0, 0, 0, 40], { stroke: 'black', strokeWidth: 3 }),
+                    new fabric.Line([10, 0, 10, 40], { stroke: 'black', strokeWidth: 3 })
+                ], {
+                    left: 100,
+                    top: 100
+                });
+                break;
+            
+            case 'led':
+                component = new fabric.Circle({
+                    left: 100,
+                    top: 100,
+                    radius: 15,
+                    fill: 'red',
+                    stroke: 'darkred',
+                    strokeWidth: 2
+                });
+                break;
+            
+            default:
+                component = new fabric.Rect({
+                    left: 100,
+                    top: 100,
+                    width: 40,
+                    height: 40,
+                    fill: 'lightgray',
+                    stroke: 'black',
+                    strokeWidth: 1
+                });
+        }
+        
+        if (component) {
+            this.circuitCanvas.add(component);
+            this.circuitCanvas.setActiveObject(component);
+        }
+    }
+
+    startUpdateLoop() {
+        setInterval(() => {
+            if (this.isRunning) {
+                this.updateSimulation();
+                this.updateCharts();
+                this.updatePeripherals();
+            }
+        }, 100);
+    }
+
+    updateSimulation() {
+        // Calculate measurements based on input values
+        const voltage = this.simulationData.voltage;
+        const current = this.simulationData.current;
+        const powerFactor = this.simulationData.powerFactor;
+        
+        this.simulationData.measurements.voltageRMS = voltage;
+        this.simulationData.measurements.currentRMS = current;
+        this.simulationData.measurements.activePower = voltage * current * powerFactor;
+        this.simulationData.measurements.reactivePower = voltage * current * Math.sin(Math.acos(powerFactor));
+        this.simulationData.measurements.apparentPower = voltage * current;
+        this.simulationData.measurements.powerFactor = powerFactor;
+        this.simulationData.measurements.frequency = this.simulationData.frequency;
+        
+        // Update display
+        this.updateMeasurementsDisplay();
+        
+        // Update progress
+        const progress = (Date.now() % 10000) / 100;
+        this.updateProgress(progress);
+    }
+
+    updateMeasurementsDisplay() {
+        const measurements = this.simulationData.measurements;
+        
+        document.getElementById('voltageRMS').textContent = `${measurements.voltageRMS.toFixed(2)} V`;
+        document.getElementById('currentRMS').textContent = `${measurements.currentRMS.toFixed(3)} A`;
+        document.getElementById('activePower').textContent = `${measurements.activePower.toFixed(2)} W`;
+        document.getElementById('reactivePower').textContent = `${measurements.reactivePower.toFixed(2)} VAR`;
+        document.getElementById('apparentPower').textContent = `${measurements.apparentPower.toFixed(2)} VA`;
+        document.getElementById('powerFactor').textContent = measurements.powerFactor.toFixed(3);
+        document.getElementById('frequency').textContent = `${measurements.frequency.toFixed(2)} Hz`;
+        document.getElementById('energy').textContent = `${(measurements.activePower * 0.001).toFixed(3)} kWh`;
+    }
+
+    updateCharts() {
+        // Generate waveform data
+        const time = Date.now() / 1000;
+        const frequency = this.simulationData.frequency;
+        const voltageData = [];
+        const currentData = [];
+        
+        for (let i = 0; i < 100; i++) {
+            const t = (time + i * 0.001) * 2 * Math.PI * frequency;
+            voltageData.push(this.simulationData.voltage * Math.sin(t));
+            currentData.push(this.simulationData.current * Math.sin(t - Math.acos(this.simulationData.powerFactor)));
+        }
+        
+        // Update waveform chart
+        this.waveformChart.data.datasets[0].data = voltageData;
+        this.waveformChart.data.datasets[1].data = currentData;
+        this.waveformChart.update('none');
+        
+        // Update oscilloscope chart
+        this.oscilloscopeChart.data.datasets[0].data = voltageData.slice(0, 200);
+        this.oscilloscopeChart.data.datasets[1].data = currentData.slice(0, 200);
+        this.oscilloscopeChart.update('none');
+        
+        // Update performance chart
+        const now = new Date().toLocaleTimeString();
+        if (this.performanceChart.data.labels.length > 20) {
+            this.performanceChart.data.labels.shift();
+            this.performanceChart.data.datasets[0].data.shift();
+            this.performanceChart.data.datasets[1].data.shift();
+        }
+        
+        this.performanceChart.data.labels.push(now);
+        this.performanceChart.data.datasets[0].data.push(Math.random() * 50 + 25);
+        this.performanceChart.data.datasets[1].data.push(Math.random() * 30 + 40);
+        this.performanceChart.update('none');
+    }
+
+    updatePeripherals() {
+        this.updateGPIOTable();
+        this.updateADCTable();
+        this.updateTimerTable();
+        this.updateMultimeter();
+    }
+
+    updateGPIOTable() {
+        const gpioContainer = document.getElementById('gpioTable');
+        if (!gpioContainer.hasChildNodes()) {
+            for (let i = 0; i < 16; i++) {
+                const item = document.createElement('div');
+                item.className = 'gpio-item';
+                item.innerHTML = `
+                    <span>GPIO${i}</span>
+                    <span id="gpio${i}State">${Math.random() > 0.5 ? 'HIGH' : 'LOW'}</span>
+                `;
+                gpioContainer.appendChild(item);
+            }
+        } else {
+            // Update GPIO states
+            for (let i = 0; i < 16; i++) {
+                const stateElement = document.getElementById(`gpio${i}State`);
+                if (stateElement) {
+                    stateElement.textContent = Math.random() > 0.5 ? 'HIGH' : 'LOW';
+                }
+            }
+        }
+    }
+
+    updateADCTable() {
+        const adcContainer = document.getElementById('adcTable');
+        if (!adcContainer.hasChildNodes()) {
+            for (let i = 0; i < 8; i++) {
+                const item = document.createElement('div');
+                item.className = 'adc-item';
+                item.innerHTML = `
+                    <span>ADC${i}</span>
+                    <span id="adc${i}Value">${(Math.random() * 3.3).toFixed(3)}V</span>
+                `;
+                adcContainer.appendChild(item);
+            }
+        } else {
+            // Update ADC values
+            for (let i = 0; i < 8; i++) {
+                const valueElement = document.getElementById(`adc${i}Value`);
+                if (valueElement) {
+                    valueElement.textContent = `${(Math.random() * 3.3).toFixed(3)}V`;
+                }
+            }
+        }
+    }
+
+    updateTimerTable() {
+        const timerContainer = document.getElementById('timerTable');
+        if (!timerContainer.hasChildNodes()) {
+            for (let i = 0; i < 4; i++) {
+                const item = document.createElement('div');
+                item.className = 'timer-item';
+                item.innerHTML = `
+                    <span>Timer${i}</span>
+                    <span id="timer${i}Status">${Math.random() > 0.5 ? 'Running' : 'Stopped'}</span>
+                `;
+                timerContainer.appendChild(item);
+            }
+        } else {
+            // Update timer status
+            for (let i = 0; i < 4; i++) {
+                const statusElement = document.getElementById(`timer${i}Status`);
+                if (statusElement) {
+                    statusElement.textContent = Math.random() > 0.5 ? 'Running' : 'Stopped';
+                }
+            }
+        }
+    }
+
+    updateMultimeter() {
+        const mode = document.getElementById('multimeterMode').value;
+        const reading = document.getElementById('multimeterReading');
+        const unit = document.getElementById('multimeterUnit');
+        
+        let value, unitText;
+        
+        switch (mode) {
+            case 'dcv':
+            case 'acv':
+                value = this.simulationData.measurements.voltageRMS;
+                unitText = 'V';
+                break;
+            case 'dca':
+            case 'aca':
+                value = this.simulationData.measurements.currentRMS;
+                unitText = 'A';
+                break;
+            case 'resistance':
+                value = Math.random() * 1000;
+                unitText = 'Ω';
+                break;
+            case 'frequency':
+                value = this.simulationData.measurements.frequency;
+                unitText = 'Hz';
+                break;
+            default:
+                value = 0;
+                unitText = '';
+        }
+        
+        reading.textContent = value.toFixed(3);
+        unit.textContent = unitText;
+    }
+}
+
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.simulator = new SmartMeterSimulator();
+});

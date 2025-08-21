@@ -69,7 +69,7 @@ pattern = "**/*.{cpp,h}"
 start = "ccls"
 
 [workflows]
-runButton = "Build and Run Extended Simulator"
+runButton = "Web Simulator"
 
 [[workflows.workflow]]
 name = "Build and Run"
@@ -100,3 +100,16 @@ args = "g++ -std=c++17 -g -Wall $(cat qt_flags.txt) -fPIC -o smart_meter_simulat
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "./smart_meter_simulator"
+
+[[workflows.workflow]]
+name = "Web Simulator"
+author = 18652289
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install -r requirements.txt"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python app.py"
