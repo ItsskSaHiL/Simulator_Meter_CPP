@@ -90,20 +90,39 @@ class SmartMeterSimulator {
 
     setupTabs() {
         const navItems = document.querySelectorAll('.nav-item');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        
+        // Handle sidebar navigation
         navItems.forEach(item => {
             item.addEventListener('click', () => {
                 const tabName = item.dataset.tab;
                 this.switchTab(tabName);
             });
         });
+        
+        // Handle tab buttons (if they exist)
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                this.switchTab(tabName);
+            });
+        });
     }
 
     switchTab(tabName) {
-        // Update navigation
+        // Update navigation items
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
             if (item.dataset.tab === tabName) {
                 item.classList.add('active');
+            }
+        });
+        
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
             }
         });
 
@@ -111,9 +130,16 @@ class SmartMeterSimulator {
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
-        document.getElementById(`${tabName}-tab`).classList.add('active');
+        
+        const targetTab = document.getElementById(`${tabName}-tab`);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
 
         this.currentTab = tabName;
+        
+        // Initialize specific tab functionality
+        this.initializeTabContent(tabName);
     }
 
     showFirmwareModal() {
@@ -749,53 +775,229 @@ class SmartMeterSimulator {
         document.getElementById('energy').textContent = `${(measurements.activePower * 0.001).toFixed(3)} kWh`;
     }
 
-    updateCharts() {
-        // Update performance chart with new data
-        const now = Date.now();
-        this.performanceChart.data.labels.push(new Date(now).toLocaleTimeString());
-        this.performanceChart.data.datasets[0].data.push(this.simulationData.measurements.voltageRMS);
-        this.performanceChart.data.datasets[1].data.push(this.simulationData.measurements.currentRMS);
-        this.performanceChart.data.datasets[2].data.push(this.simulationData.measurements.activePower);
+    initializeTabContent(tabName) {
+        switch(tabName) {
+            case 'harmonics':
+                this.updateHarmonicsDisplay();
+                break;
+            case 'phasors':
+                this.updatePhasorDisplay();
+                break;
+            case 'measurements':
+                this.updateOscilloscopeDisplay();
+                break;
+            case 'circuit':
+                this.refreshCircuitCanvas();
+                break;
+        }
+    }
 
-        // Keep only last 20 data points
-        if (this.performanceChart.data.labels.length > 20) {
-            this.performanceChart.data.labels.shift();
-            this.performanceChart.data.datasets.forEach(dataset => dataset.data.shift());
+    updateCharts() {
+        // Update waveform data
+        this.updateWaveformChart();
+        
+        // Update performance chart with new data
+        if (this.performanceChart && this.isRunning) {
+            const now = Date.now();
+            this.performanceChart.data.labels.push(new Date(now).toLocaleTimeString());
+            this.performanceChart.data.datasets[0].data.push(Math.random() * 100); // CPU usage
+            this.performanceChart.data.datasets[1].data.push(Math.random() * 80);  // Memory usage
+            this.performanceChart.data.datasets[2].data.push(this.simulationData.measurements.activePower);
+
+            // Keep only last 20 data points
+            if (this.performanceChart.data.labels.length > 20) {
+                this.performanceChart.data.labels.shift();
+                this.performanceChart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            this.performanceChart.update('none');
         }
 
-        this.performanceChart.update('none');
-
-        // Update harmonics and phasors if tabs are active
-        const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
-        if (activeTab === 'harmonics') {
+        // Update tab-specific charts based on current active tab
+        if (this.currentTab === 'harmonics') {
             this.updateHarmonicsDisplay();
-        } else if (activeTab === 'phasors') {
+        } else if (this.currentTab === 'phasors') {
             this.updatePhasorDisplay();
         }
     }
 
+    updateWaveformChart() {
+        if (!this.waveformChart || !this.isRunning) return;
+        
+        const time = Date.now() / 1000;
+        const frequency = this.simulationData.frequency;
+        const voltageAmplitude = this.simulationData.voltage * Math.sqrt(2);
+        const currentAmplitude = this.simulationData.current * Math.sqrt(2);
+        const powerFactor = this.simulationData.powerFactor;
+        
+        const voltageData = [];
+        const currentData = [];
+        
+        for (let i = 0; i < 100; i++) {
+            const t = (time + i * 0.001) * 2 * Math.PI * frequency;
+            voltageData.push(voltageAmplitude * Math.sin(t));
+            currentData.push(currentAmplitude * Math.sin(t - Math.acos(powerFactor)));
+        }
+        
+        this.waveformChart.data.datasets[0].data = voltageData;
+        this.waveformChart.data.datasets[1].data = currentData;
+        this.waveformChart.update('none');
+    }
+
     updateHarmonicsDisplay() {
-        const voltageHarmonics = this.simulationData.harmonics.voltage;
-        const currentHarmonics = this.simulationData.harmonics.current;
+        if (!this.harmonicsChart) return;
+        
+        // Generate up to 33rd harmonic
+        const harmonicLabels = [];
+        const voltageHarmonics = [];
+        const currentHarmonics = [];
+        
+        for (let h = 1; h <= 33; h++) {
+            harmonicLabels.push(h.toString());
+            
+            if (h === 1) {
+                voltageHarmonics.push(100); // Fundamental is 100%
+                currentHarmonics.push(100);
+            } else if (h % 2 === 1 && h <= 13) { // Odd harmonics up to 13th
+                voltageHarmonics.push(Math.random() * 8 + 1);
+                currentHarmonics.push(Math.random() * 12 + 2);
+            } else if (h <= 25) {
+                voltageHarmonics.push(Math.random() * 3 + 0.5);
+                currentHarmonics.push(Math.random() * 5 + 1);
+            } else {
+                voltageHarmonics.push(Math.random() * 1 + 0.1);
+                currentHarmonics.push(Math.random() * 2 + 0.2);
+            }
+        }
 
-        // Update harmonic orders and magnitudes for the chart
-        const labels = voltageHarmonics.map(h => h.order);
-        const voltageMagnitudes = voltageHarmonics.map(h => (h.magnitude / this.simulationData.voltage) * 100); // Percentage of fundamental
-        const currentMagnitudes = currentHarmonics.map(h => (h.magnitude / this.simulationData.current) * 100); // Percentage of fundamental
-
-        this.harmonicsChart.data.labels = labels;
-        this.harmonicsChart.data.datasets[0].data = voltageMagnitudes;
-        this.harmonicsChart.data.datasets[1].data = currentMagnitudes;
+        this.harmonicsChart.data.labels = harmonicLabels;
+        this.harmonicsChart.data.datasets[0].data = voltageHarmonics;
+        this.harmonicsChart.data.datasets[1].data = currentHarmonics;
         this.harmonicsChart.update();
+        
+        // Update harmonics table
+        this.updateHarmonicsTable(harmonicLabels, voltageHarmonics, currentHarmonics);
+    }
+
+    updateHarmonicsTable(labels, voltageHarmonics, currentHarmonics) {
+        const tableBody = document.getElementById('harmonicsTableBody');
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = '';
+        
+        for (let i = 0; i < Math.min(labels.length, 33); i++) {
+            const row = document.createElement('tr');
+            const frequency = this.simulationData.frequency * parseInt(labels[i]);
+            const phase = Math.random() * 360 - 180; // Random phase
+            
+            row.innerHTML = `
+                <td>${labels[i]}</td>
+                <td>${frequency.toFixed(1)}</td>
+                <td>${voltageHarmonics[i].toFixed(2)}</td>
+                <td>${currentHarmonics[i].toFixed(2)}</td>
+                <td>${phase.toFixed(1)}</td>
+            `;
+            tableBody.appendChild(row);
+        }
     }
 
     updatePhasorDisplay() {
-        const voltagePhasor = this.simulationData.phasors.voltage;
-        const currentPhasor = this.simulationData.phasors.current;
+        if (!this.phasorChart) return;
+        
+        // Calculate three-phase phasors
+        const voltageMag = this.simulationData.voltage;
+        const currentMag = this.simulationData.current;
+        const powerFactorAngle = Math.acos(this.simulationData.powerFactor) * 180 / Math.PI;
+        
+        const voltagePhasors = [];
+        const currentPhasors = [];
+        
+        // Three phases: L1, L2, L3
+        for (let phase = 0; phase < 3; phase++) {
+            const voltageAngle = phase * 120; // 120 degree separation
+            const currentAngle = voltageAngle - powerFactorAngle; // Current lags voltage
+            
+            // Convert to Cartesian coordinates
+            const vReal = voltageMag * Math.cos(voltageAngle * Math.PI / 180);
+            const vImag = voltageMag * Math.sin(voltageAngle * Math.PI / 180);
+            const iReal = currentMag * Math.cos(currentAngle * Math.PI / 180);
+            const iImag = currentMag * Math.sin(currentAngle * Math.PI / 180);
+            
+            voltagePhasors.push({ x: vReal, y: vImag });
+            currentPhasors.push({ x: iReal, y: iImag });
+        }
 
-        this.phasorChart.data.datasets[0].data = [{ x: voltagePhasor.real, y: voltagePhasor.imag }];
-        this.phasorChart.data.datasets[1].data = [{ x: currentPhasor.real, y: currentPhasor.imag }];
+        this.phasorChart.data.datasets[0].data = voltagePhasors;
+        this.phasorChart.data.datasets[1].data = currentPhasors;
         this.phasorChart.update();
+        
+        // Update phasor tables
+        this.updatePhasorTables(voltagePhasors, currentPhasors);
+    }
+
+    updatePhasorTables(voltagePhasors, currentPhasors) {
+        const voltageTable = document.getElementById('voltagePhasorTable');
+        const currentTable = document.getElementById('currentPhasorTable');
+        
+        if (voltageTable) {
+            voltageTable.innerHTML = '';
+            voltagePhasors.forEach((phasor, index) => {
+                const magnitude = Math.sqrt(phasor.x * phasor.x + phasor.y * phasor.y);
+                const angle = Math.atan2(phasor.y, phasor.x) * 180 / Math.PI;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>L${index + 1}</td>
+                    <td>${magnitude.toFixed(2)} V</td>
+                    <td>${angle.toFixed(1)}°</td>
+                `;
+                voltageTable.appendChild(row);
+            });
+        }
+        
+        if (currentTable) {
+            currentTable.innerHTML = '';
+            currentPhasors.forEach((phasor, index) => {
+                const magnitude = Math.sqrt(phasor.x * phasor.x + phasor.y * phasor.y);
+                const angle = Math.atan2(phasor.y, phasor.x) * 180 / Math.PI;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>L${index + 1}</td>
+                    <td>${magnitude.toFixed(2)} A</td>
+                    <td>${angle.toFixed(1)}°</td>
+                `;
+                currentTable.appendChild(row);
+            });
+        }
+    }
+
+    updateOscilloscopeDisplay() {
+        if (!this.oscilloscopeChart || !this.isRunning) return;
+        
+        const time = Date.now() / 1000;
+        const frequency = this.simulationData.frequency;
+        const voltageAmplitude = this.simulationData.voltage * Math.sqrt(2);
+        const currentAmplitude = this.simulationData.current * Math.sqrt(2);
+        
+        const ch1Data = [];
+        const ch2Data = [];
+        
+        for (let i = 0; i < 200; i++) {
+            const t = (time + i * 0.0005) * 2 * Math.PI * frequency;
+            ch1Data.push(voltageAmplitude * Math.sin(t) + Math.random() * 5 - 2.5); // Add noise
+            ch2Data.push(currentAmplitude * 10 * Math.sin(t - Math.PI/4) + Math.random() * 2 - 1); // Scale current for visibility
+        }
+        
+        this.oscilloscopeChart.data.datasets[0].data = ch1Data;
+        this.oscilloscopeChart.data.datasets[1].data = ch2Data;
+        this.oscilloscopeChart.update('none');
+    }
+
+    refreshCircuitCanvas() {
+        if (this.circuitCanvas) {
+            this.circuitCanvas.renderAll();
+        }
     }
 
     updatePeripherals() {

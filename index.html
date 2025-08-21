@@ -45,6 +45,8 @@
                     <button class="tab-btn" data-tab="protocols">Protocols</button>
                     <button class="tab-btn" data-tab="logging">Logging</button>
                     <button class="tab-btn" data-tab="automation">Automation</button>
+                    <button class="tab-btn" data-tab="harmonics">Harmonics</button>
+                    <button class="tab-btn" data-tab="phasors">Phasors</button>
                 </div>
                 <ul class="nav-menu">
                     <li class="nav-item active" data-tab="firmware">
@@ -70,6 +72,12 @@
                     </li>
                     <li class="nav-item" data-tab="automation">
                         <i class="fas fa-robot"></i> Automation
+                    </li>
+                    <li class="nav-item" data-tab="harmonics">
+                        <i class="fas fa-wave-square"></i> Harmonics
+                    </li>
+                    <li class="nav-item" data-tab="phasors">
+                        <i class="fas fa-vector-square"></i> Phasors
                     </li>
                 </ul>
             </nav>
@@ -111,9 +119,21 @@
                                     <label for="mcuPartNumber">Part Number:</label>
                                     <select id="mcuPartNumber" class="select-input">
                                         <option value="STM32F407VG">STM32F407VG</option>
-                                        <option value="RL78/I1C">RL78/I1C (Smart Meter)</option>
+                                        <option value="STM32G071RB">STM32G071RB</option>
+                                        <option value="STM32H743VI">STM32H743VI</option>
+                                        <option value="RL78/I1C">RL78/I1C (Smart Meter Optimized)</option>
                                         <option value="RL78/I1D">RL78/I1D (Enhanced Meter)</option>
-                                        <option value="MAX78630">MAX78630 (Dual-Core)</option>
+                                        <option value="RL78/G14">RL78/G14 (General Purpose)</option>
+                                        <option value="RX65N">RX65N (High Performance)</option>
+                                        <option value="RX23W">RX23W (IoT Optimized)</option>
+                                        <option value="ESP32-S3">ESP32-S3 (AI Enhanced)</option>
+                                        <option value="ESP32-C6">ESP32-C6 (WiFi6/Thread)</option>
+                                        <option value="MSP430FR5994">MSP430FR5994 (Ultra Low Power)</option>
+                                        <option value="MAX78630">MAX78630 (Dual-Core AFE)</option>
+                                        <option value="MAX32690">MAX32690 (ARM Cortex-M4)</option>
+                                        <option value="ADE9000">ADE9000 (Analog Devices AFE)</option>
+                                        <option value="PIC32MX470F512L">PIC32MX470F512L (Microchip)</option>
+                                        <option value="EFM32GG11B">EFM32GG11B (Silicon Labs)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
