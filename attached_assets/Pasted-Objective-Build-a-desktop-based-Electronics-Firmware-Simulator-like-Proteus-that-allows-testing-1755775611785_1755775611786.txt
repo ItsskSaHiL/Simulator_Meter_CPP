@@ -1,0 +1,82 @@
+Objective:
+Build a desktop-based Electronics + Firmware Simulator (like Proteus) that allows testing and debugging of smart meter firmware and general embedded projects.
+
+Core MVP Features:
+
+Firmware Loader
+
+Accept .hex and .bin files.
+
+Allow user to specify target microcontroller (ARM Cortex-M, RL78, STM32, ESP32, etc.) and package type.
+
+Load firmware into virtual MCU flash.
+
+Microcontroller & Architecture Support
+
+Basic models: STM32F4, STM32G0, Renesas RL78, ESP32.
+
+Support for register-level emulation (basic peripherals: GPIO, UART, SPI, I2C, ADC).
+
+Configurable clock, memory size.
+
+Electronics Components Library (drag & drop)
+
+Resistors, capacitors, diodes, op-amps, switches, LEDs, relays.
+
+Power sources (DC, AC generator, signal generator).
+
+Communication modules (GSM, BLE, WiFi — basic dummy response simulation).
+
+Test Inputs for Smart Metering
+
+Single-phase & 3-phase inputs with configurable voltage, current, frequency.
+
+Simulated ADC readings mapped to firmware.
+
+Magnetic tamper input simulation.
+
+Measurement & Debugging Tools
+
+Virtual CRO (oscilloscope).
+
+Multimeter.
+
+Logic analyzer.
+
+UART console/terminal for debugging firmware logs.
+
+User Experience (UI/UX)
+
+Drag-and-drop circuit builder like Proteus.
+
+Component property panel (change resistance, voltage, etc.).
+
+Firmware debug panel (step, run, reset, breakpoints if possible).
+
+Configurable Architecture
+
+Add/remove components dynamically.
+
+Change microcontroller and reload firmware.
+
+Save/load project configurations.
+
+Tech Stack Suggestions (MVP Feasible)
+
+Frontend/UI: Electron.js or Qt (desktop app, drag & drop).
+
+Backend/Simulation Core: C++/Rust for speed, use QEMU or Unicorn Engine for MCU instruction set emulation.
+
+Circuit Simulation: ngspice or custom lightweight SPICE engine integration.
+
+Firmware Debugging: GDB integration for step/debug.
+
+Future Extensions (beyond MVP):
+
+Add IoT modules (LoRa, NB-IoT).
+
+Real-time waveform export.
+
+Scripting API for automated testing.
+
+Integration with Git for firmware CI/CD.
