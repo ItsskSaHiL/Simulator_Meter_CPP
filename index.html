@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,6 +36,16 @@
         <div class="main-content">
             <!-- Sidebar -->
             <nav class="sidebar">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="firmware">Firmware</button>
+                    <button class="tab-btn" data-tab="metering">Metering</button>
+                    <button class="tab-btn" data-tab="circuit">Circuit Design</button>
+                    <button class="tab-btn" data-tab="measurements">Measurements</button>
+                    <button class="tab-btn" data-tab="peripherals">Peripherals</button>
+                    <button class="tab-btn" data-tab="protocols">Protocols</button>
+                    <button class="tab-btn" data-tab="logging">Logging</button>
+                    <button class="tab-btn" data-tab="automation">Automation</button>
+                </div>
                 <ul class="nav-menu">
                     <li class="nav-item active" data-tab="firmware">
                         <i class="fas fa-microchip"></i> Firmware
@@ -84,26 +93,37 @@
                                     <select id="mcuFamily" class="select-input">
                                         <option value="STM32F4">STM32F4</option>
                                         <option value="STM32G0">STM32G0</option>
+                                        <option value="STM32H7">STM32H7</option>
+                                        <option value="Renesas RL78">Renesas RL78</option>
+                                        <option value="Renesas RX">Renesas RX</option>
                                         <option value="ESP32">ESP32</option>
-                                        <option value="RL78">Renesas RL78</option>
-                                        <option value="MSP430">TI MSP430</option>
-                                        <option value="RISC-V">RISC-V</option>
+                                        <option value="ESP8266">ESP8266</option>
+                                        <option value="Arduino">Arduino</option>
+                                        <option value="TI MSP430">TI MSP430</option>
+                                        <option value="NXP">NXP</option>
+                                        <option value="Maxim">Maxim</option>
+                                        <option value="Analog Devices">Analog Devices</option>
+                                        <option value="Microchip">Microchip</option>
+                                        <option value="Silicon Labs">Silicon Labs</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>Part Number:</label>
-                                    <select id="partNumber" class="select-input">
+                                    <label for="mcuPartNumber">Part Number:</label>
+                                    <select id="mcuPartNumber" class="select-input">
                                         <option value="STM32F407VG">STM32F407VG</option>
-                                        <option value="STM32G071RB">STM32G071RB</option>
-                                        <option value="ESP32-WROOM-32">ESP32-WROOM-32</option>
+                                        <option value="RL78/I1C">RL78/I1C (Smart Meter)</option>
+                                        <option value="RL78/I1D">RL78/I1D (Enhanced Meter)</option>
+                                        <option value="MAX78630">MAX78630 (Dual-Core)</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Architecture:</label>
                                     <select id="architecture" class="select-input">
                                         <option value="ARM Cortex-M4">ARM Cortex-M4</option>
-                                        <option value="ARM Cortex-M0+">ARM Cortex-M0+</option>
-                                        <option value="Xtensa LX6">Xtensa LX6</option>
+                                        <option value="ARM Cortex-M0">ARM Cortex-M0</option>
+                                        <option value="RL78">RL78</option>
+                                        <option value="ESP32">ESP32</option>
+                                        <option value="AVR">AVR</option>
                                     </select>
                                 </div>
                             </div>
@@ -501,6 +521,77 @@
                             </div>
                             <div class="card-body">
                                 <canvas id="performanceChart" width="800" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Harmonics Tab -->
+                <div class="tab-content" id="harmonics-tab">
+                    <div class="harmonics-container">
+                        <div class="harmonics-header">
+                            <h3>Harmonic Analysis (Up to 33rd Order)</h3>
+                            <div class="harmonics-controls">
+                                <button class="btn btn-secondary" onclick="toggleHarmonicsView('voltage')">Voltage</button>
+                                <button class="btn btn-secondary" onclick="toggleHarmonicsView('current')">Current</button>
+                                <button class="btn btn-secondary" onclick="toggleHarmonicsView('both')">Both</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="harmonicsChart"></canvas>
+                        </div>
+                        <div class="harmonics-table">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Order</th>
+                                        <th>Frequency (Hz)</th>
+                                        <th>Voltage (%)</th>
+                                        <th>Current (%)</th>
+                                        <th>Phase (°)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="harmonicsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phasors Tab -->
+                <div class="tab-content" id="phasors-tab">
+                    <div class="phasor-container">
+                        <h3>Phasor Diagram</h3>
+                        <div class="phasor-charts">
+                            <div class="phasor-chart">
+                                <canvas id="phasorChart"></canvas>
+                            </div>
+                            <div class="phasor-data">
+                                <h4>Voltage Phasors</h4>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Phase</th>
+                                            <th>Magnitude</th>
+                                            <th>Angle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="voltagePhasorTable">
+                                    </tbody>
+                                </table>
+
+                                <h4>Current Phasors</h4>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Phase</th>
+                                            <th>Magnitude</th>
+                                            <th>Angle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="currentPhasorTable">
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

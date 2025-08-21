@@ -271,6 +271,8 @@ def update_configuration():
         backend.simulation_data['phase_config'] = data['phase_config']
     if 'mcu_config' in data:
         backend.simulation_data['mcu_config'] = data['mcu_config']
+        # Add logic here to handle different MCU configurations if needed
+        # For example, if 'Renesas RL78/I1C' is selected, update simulation parameters accordingly
 
     return jsonify({'success': True, 'message': 'Configuration updated'})
 

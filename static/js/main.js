@@ -1,4 +1,3 @@
-
 // Main Application Controller
 class SmartMeterSimulator {
     constructor() {
@@ -18,9 +17,17 @@ class SmartMeterSimulator {
                 powerFactor: 0,
                 frequency: 0,
                 energy: 0
+            },
+            harmonics: {
+                voltage: [],
+                current: []
+            },
+            phasors: {
+                voltage: { real: 0, imag: 0 },
+                current: { real: 0, imag: 0 }
             }
         };
-        
+
         this.init();
     }
 
@@ -72,6 +79,11 @@ class SmartMeterSimulator {
         });
         document.getElementById('firmwareFileInput').addEventListener('change', (e) => this.handleFirmwareUpload(e));
 
+        // MCU configuration
+        document.getElementById('mcuFamily').addEventListener('change', () => this.loadMCUPartNumbers());
+        document.getElementById('mcuPartNumber').addEventListener('change', () => this.updateMCUConfiguration());
+        document.getElementById('mcuArchitecture').addEventListener('change', () => this.updateMCUConfiguration());
+
         // Drag and drop
         this.setupDragAndDrop();
     }
@@ -114,7 +126,7 @@ class SmartMeterSimulator {
 
     setupDragAndDrop() {
         const dropZone = document.getElementById('fileDropZone');
-        
+
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.style.background = '#e3f2fd';
@@ -127,7 +139,7 @@ class SmartMeterSimulator {
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.style.background = '#f8f9fa';
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 this.processFirmwareFile(files[0]);
@@ -155,7 +167,7 @@ class SmartMeterSimulator {
         this.logMessage(`Firmware file loaded: ${file.name}`, 'info');
         document.getElementById('startSimulation').disabled = false;
         this.closeFirmwareModal();
-        
+
         // Update status
         document.getElementById('simulationStatus').textContent = 'Firmware Loaded';
         document.getElementById('simulationStatus').className = 'status-badge status-paused';
@@ -198,6 +210,8 @@ class SmartMeterSimulator {
             frequency: 0,
             energy: 0
         };
+        this.simulationData.harmonics = { voltage: [], current: [] };
+        this.simulationData.phasors = { voltage: { real: 0, imag: 0 }, current: { real: 0, imag: 0 } };
         this.updateProgress(0);
         this.logMessage('Simulation reset', 'info');
     }
@@ -226,11 +240,11 @@ class SmartMeterSimulator {
     sendUartCommand() {
         const input = document.getElementById('uartInput');
         const command = input.value.trim();
-        
+
         if (command) {
             this.addToTerminal(`TX: ${command}`);
             input.value = '';
-            
+
             // Simulate response
             setTimeout(() => {
                 this.addToTerminal(`RX: ECHO: ${command}`);
@@ -249,11 +263,11 @@ class SmartMeterSimulator {
         const input = document.getElementById('protocolCommand');
         const command = input.value.trim();
         const protocol = document.getElementById('protocolType').value;
-        
+
         if (command) {
             this.logProtocol(`[${protocol.toUpperCase()}] TX: ${command}`);
             input.value = '';
-            
+
             // Simulate protocol response
             setTimeout(() => {
                 const response = this.generateProtocolResponse(protocol, command);
@@ -270,16 +284,16 @@ class SmartMeterSimulator {
                     return 'DLMS Response: 1.0.1.8.0.255 = 12345.678*kWh';
                 }
                 return 'DLMS Response: OK';
-            
+
             case 'modbus-rtu':
                 return '01 03 02 0C 35 A1';
-            
+
             case 'iec62056':
                 if (command === '/?!') {
                     return '/SMT5\\2@1234567890';
                 }
                 return 'IEC Response: OK';
-            
+
             default:
                 return 'OK';
         }
@@ -305,12 +319,12 @@ class SmartMeterSimulator {
         const content = log.textContent;
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `simulation_log_${new Date().toISOString().split('T')[0]}.txt`;
         a.click();
-        
+
         URL.revokeObjectURL(url);
     }
 
@@ -327,6 +341,8 @@ class SmartMeterSimulator {
         this.setupWaveformChart();
         this.setupOscilloscopeChart();
         this.setupPerformanceChart();
+        this.setupHarmonicsChart();
+        this.setupPhasorChart();
     }
 
     setupWaveformChart() {
@@ -431,6 +447,12 @@ class SmartMeterSimulator {
                     borderColor: 'rgb(255, 159, 64)',
                     backgroundColor: 'rgba(255, 159, 64, 0.1)',
                     tension: 0.4
+                }, {
+                    label: 'Active Power (W)',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.4
                 }]
             },
             options: {
@@ -439,7 +461,110 @@ class SmartMeterSimulator {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100
+                        max: 100 // Assuming CPU/Memory are %
+                    }
+                }
+            }
+        });
+    }
+
+    setupHarmonicsChart() {
+        const ctx = document.getElementById('harmonicsChart').getContext('2d');
+        this.harmonicsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Voltage Harmonics (%)',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }, {
+                    label: 'Current Harmonics (%)',
+                    data: [],
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Magnitude (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Harmonic Order'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    setupPhasorChart() {
+        const ctx = document.getElementById('phasorChart').getContext('2d');
+        this.phasorChart = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Voltage Phasor',
+                    data: [{ x: this.simulationData.phasors.voltage.real, y: this.simulationData.phasors.voltage.imag }],
+                    backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointRadius: 5,
+                    showLine: false
+                }, {
+                    label: 'Current Phasor',
+                    data: [{ x: this.simulationData.phasors.current.real, y: this.simulationData.phasors.current.imag }],
+                    backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    pointRadius: 5,
+                    showLine: false
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Real Part'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.3)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Imaginary Part'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.3)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
                     }
                 }
             }
@@ -450,10 +575,10 @@ class SmartMeterSimulator {
         // Initialize Fabric.js canvas for circuit design
         this.circuitCanvas = new fabric.Canvas('circuitCanvas');
         this.circuitCanvas.setBackgroundColor('#f8f9fa', this.circuitCanvas.renderAll.bind(this.circuitCanvas));
-        
+
         // Add grid
         this.addGrid();
-        
+
         // Setup component drag and drop
         this.setupComponentLibrary();
     }
@@ -497,7 +622,7 @@ class SmartMeterSimulator {
 
     addComponentToCanvas(type) {
         let component;
-        
+
         switch (type) {
             case 'resistor':
                 component = new fabric.Rect({
@@ -510,7 +635,7 @@ class SmartMeterSimulator {
                     strokeWidth: 2
                 });
                 break;
-            
+
             case 'capacitor':
                 component = new fabric.Group([
                     new fabric.Line([0, 0, 0, 40], { stroke: 'black', strokeWidth: 3 }),
@@ -520,7 +645,7 @@ class SmartMeterSimulator {
                     top: 100
                 });
                 break;
-            
+
             case 'led':
                 component = new fabric.Circle({
                     left: 100,
@@ -531,7 +656,7 @@ class SmartMeterSimulator {
                     strokeWidth: 2
                 });
                 break;
-            
+
             default:
                 component = new fabric.Rect({
                     left: 100,
@@ -543,7 +668,7 @@ class SmartMeterSimulator {
                     strokeWidth: 1
                 });
         }
-        
+
         if (component) {
             this.circuitCanvas.add(component);
             this.circuitCanvas.setActiveObject(component);
@@ -565,26 +690,55 @@ class SmartMeterSimulator {
         const voltage = this.simulationData.voltage;
         const current = this.simulationData.current;
         const powerFactor = this.simulationData.powerFactor;
-        
+        const frequency = this.simulationData.frequency;
+
         this.simulationData.measurements.voltageRMS = voltage;
         this.simulationData.measurements.currentRMS = current;
         this.simulationData.measurements.activePower = voltage * current * powerFactor;
         this.simulationData.measurements.reactivePower = voltage * current * Math.sin(Math.acos(powerFactor));
         this.simulationData.measurements.apparentPower = voltage * current;
         this.simulationData.measurements.powerFactor = powerFactor;
-        this.simulationData.measurements.frequency = this.simulationData.frequency;
-        
+        this.simulationData.measurements.frequency = frequency;
+
+        // Update harmonics (example: fundamental + some noise)
+        this.simulationData.harmonics.voltage = this.generateHarmonics(voltage, frequency, 0.05); // 5% THD
+        this.simulationData.harmonics.current = this.generateHarmonics(current, frequency, 0.1); // 10% THD
+
+        // Update phasors (RMS values as magnitude, assume 0 phase for simplicity)
+        this.simulationData.phasors.voltage = { real: voltage, imag: 0 };
+        this.simulationData.phasors.current = { real: current * powerFactor, imag: current * Math.sin(Math.acos(powerFactor)) };
+
+
         // Update display
         this.updateMeasurementsDisplay();
-        
+
         // Update progress
         const progress = (Date.now() % 10000) / 100;
         this.updateProgress(progress);
     }
 
+    generateHarmonics(fundamental, frequency, thd) {
+        const harmonics = [];
+        const numHarmonics = 10; // Calculate up to 10th harmonic
+        const fundamentalRad = 2 * Math.PI * frequency;
+
+        for (let i = 1; i <= numHarmonics; i++) {
+            const harmonicOrder = i;
+            let magnitude = 0;
+            if (harmonicOrder === 1) {
+                magnitude = fundamental;
+            } else {
+                // Add random harmonic distortion
+                magnitude = fundamental * thd * (Math.random() - 0.5) * 2;
+            }
+            harmonics.push({ order: harmonicOrder, magnitude: Math.max(0, magnitude) }); // Ensure magnitude is non-negative
+        }
+        return harmonics;
+    }
+
     updateMeasurementsDisplay() {
         const measurements = this.simulationData.measurements;
-        
+
         document.getElementById('voltageRMS').textContent = `${measurements.voltageRMS.toFixed(2)} V`;
         document.getElementById('currentRMS').textContent = `${measurements.currentRMS.toFixed(3)} A`;
         document.getElementById('activePower').textContent = `${measurements.activePower.toFixed(2)} W`;
@@ -596,40 +750,52 @@ class SmartMeterSimulator {
     }
 
     updateCharts() {
-        // Generate waveform data
-        const time = Date.now() / 1000;
-        const frequency = this.simulationData.frequency;
-        const voltageData = [];
-        const currentData = [];
-        
-        for (let i = 0; i < 100; i++) {
-            const t = (time + i * 0.001) * 2 * Math.PI * frequency;
-            voltageData.push(this.simulationData.voltage * Math.sin(t));
-            currentData.push(this.simulationData.current * Math.sin(t - Math.acos(this.simulationData.powerFactor)));
-        }
-        
-        // Update waveform chart
-        this.waveformChart.data.datasets[0].data = voltageData;
-        this.waveformChart.data.datasets[1].data = currentData;
-        this.waveformChart.update('none');
-        
-        // Update oscilloscope chart
-        this.oscilloscopeChart.data.datasets[0].data = voltageData.slice(0, 200);
-        this.oscilloscopeChart.data.datasets[1].data = currentData.slice(0, 200);
-        this.oscilloscopeChart.update('none');
-        
-        // Update performance chart
-        const now = new Date().toLocaleTimeString();
+        // Update performance chart with new data
+        const now = Date.now();
+        this.performanceChart.data.labels.push(new Date(now).toLocaleTimeString());
+        this.performanceChart.data.datasets[0].data.push(this.simulationData.measurements.voltageRMS);
+        this.performanceChart.data.datasets[1].data.push(this.simulationData.measurements.currentRMS);
+        this.performanceChart.data.datasets[2].data.push(this.simulationData.measurements.activePower);
+
+        // Keep only last 20 data points
         if (this.performanceChart.data.labels.length > 20) {
             this.performanceChart.data.labels.shift();
-            this.performanceChart.data.datasets[0].data.shift();
-            this.performanceChart.data.datasets[1].data.shift();
+            this.performanceChart.data.datasets.forEach(dataset => dataset.data.shift());
         }
-        
-        this.performanceChart.data.labels.push(now);
-        this.performanceChart.data.datasets[0].data.push(Math.random() * 50 + 25);
-        this.performanceChart.data.datasets[1].data.push(Math.random() * 30 + 40);
+
         this.performanceChart.update('none');
+
+        // Update harmonics and phasors if tabs are active
+        const activeTab = document.querySelector('.nav-item.active')?.dataset.tab;
+        if (activeTab === 'harmonics') {
+            this.updateHarmonicsDisplay();
+        } else if (activeTab === 'phasors') {
+            this.updatePhasorDisplay();
+        }
+    }
+
+    updateHarmonicsDisplay() {
+        const voltageHarmonics = this.simulationData.harmonics.voltage;
+        const currentHarmonics = this.simulationData.harmonics.current;
+
+        // Update harmonic orders and magnitudes for the chart
+        const labels = voltageHarmonics.map(h => h.order);
+        const voltageMagnitudes = voltageHarmonics.map(h => (h.magnitude / this.simulationData.voltage) * 100); // Percentage of fundamental
+        const currentMagnitudes = currentHarmonics.map(h => (h.magnitude / this.simulationData.current) * 100); // Percentage of fundamental
+
+        this.harmonicsChart.data.labels = labels;
+        this.harmonicsChart.data.datasets[0].data = voltageMagnitudes;
+        this.harmonicsChart.data.datasets[1].data = currentMagnitudes;
+        this.harmonicsChart.update();
+    }
+
+    updatePhasorDisplay() {
+        const voltagePhasor = this.simulationData.phasors.voltage;
+        const currentPhasor = this.simulationData.phasors.current;
+
+        this.phasorChart.data.datasets[0].data = [{ x: voltagePhasor.real, y: voltagePhasor.imag }];
+        this.phasorChart.data.datasets[1].data = [{ x: currentPhasor.real, y: currentPhasor.imag }];
+        this.phasorChart.update();
     }
 
     updatePeripherals() {
@@ -712,9 +878,9 @@ class SmartMeterSimulator {
         const mode = document.getElementById('multimeterMode').value;
         const reading = document.getElementById('multimeterReading');
         const unit = document.getElementById('multimeterUnit');
-        
+
         let value, unitText;
-        
+
         switch (mode) {
             case 'dcv':
             case 'acv':
@@ -738,9 +904,44 @@ class SmartMeterSimulator {
                 value = 0;
                 unitText = '';
         }
-        
+
         reading.textContent = value.toFixed(3);
         unit.textContent = unitText;
+    }
+
+    loadMCUPartNumbers() {
+        const familySelect = document.getElementById('mcuFamily');
+        const partNumberSelect = document.getElementById('mcuPartNumber');
+        const selectedFamily = familySelect.value;
+
+        // Clear existing part numbers
+        partNumberSelect.innerHTML = '<option value="">Select Part Number</option>';
+
+        const mcuData = {
+            'STM32': ['STM32F103', 'STM32F407', 'STM32L476'],
+            'ESP32': ['ESP32-WROOM-32', 'ESP32-S3', 'ESP32-C3'],
+            'AVR': ['ATmega328P', 'ATtiny85', 'ATmega2560']
+        };
+
+        if (mcuData[selectedFamily]) {
+            mcuData[selectedFamily].forEach(partNumber => {
+                const option = document.createElement('option');
+                option.value = partNumber;
+                option.textContent = partNumber;
+                partNumberSelect.appendChild(option);
+            });
+        }
+        this.updateMCUConfiguration(); // Update configuration even if no part number is selected
+    }
+
+    updateMCUConfiguration() {
+        const family = document.getElementById('mcuFamily').value;
+        const partNumber = document.getElementById('mcuPartNumber').value;
+        const architecture = document.getElementById('mcuArchitecture').value;
+
+        // In a real application, you would use this information to configure the simulation
+        // For now, we'll just log it.
+        this.logMessage(`MCU Configuration Updated: Family=${family}, Part Number=${partNumber}, Architecture=${architecture}`, 'info');
     }
 }
 
