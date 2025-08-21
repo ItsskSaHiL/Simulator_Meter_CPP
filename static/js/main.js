@@ -94,7 +94,8 @@ class SmartMeterSimulator {
         
         // Handle sidebar navigation
         navItems.forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
                 const tabName = item.dataset.tab;
                 this.switchTab(tabName);
             });
@@ -102,7 +103,8 @@ class SmartMeterSimulator {
         
         // Handle tab buttons (if they exist)
         tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
                 const tabName = btn.dataset.tab;
                 this.switchTab(tabName);
             });
@@ -110,6 +112,8 @@ class SmartMeterSimulator {
     }
 
     switchTab(tabName) {
+        console.log('Switching to tab:', tabName); // Debug log
+        
         // Update navigation items
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
@@ -126,14 +130,20 @@ class SmartMeterSimulator {
             }
         });
 
-        // Update content
+        // Hide all tab content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
+            content.style.display = 'none';
         });
         
+        // Show target tab
         const targetTab = document.getElementById(`${tabName}-tab`);
         if (targetTab) {
             targetTab.classList.add('active');
+            targetTab.style.display = 'block';
+            console.log('Tab activated:', tabName); // Debug log
+        } else {
+            console.error('Tab not found:', `${tabName}-tab`);
         }
 
         this.currentTab = tabName;
@@ -873,7 +883,7 @@ class SmartMeterSimulator {
         this.harmonicsChart.data.labels = harmonicLabels;
         this.harmonicsChart.data.datasets[0].data = voltageHarmonics;
         this.harmonicsChart.data.datasets[1].data = currentHarmonics;
-        this.harmonicsChart.update();
+        this.harmonicsChart.update('none');
         
         // Update harmonics table
         this.updateHarmonicsTable(harmonicLabels, voltageHarmonics, currentHarmonics);
@@ -970,6 +980,31 @@ class SmartMeterSimulator {
                 currentTable.appendChild(row);
             });
         }
+    }
+
+    // Global functions for harmonics control
+    toggleHarmonicsView(type) {
+        if (!this.harmonicsChart) return;
+        
+        const voltageDataset = this.harmonicsChart.data.datasets[0];
+        const currentDataset = this.harmonicsChart.data.datasets[1];
+        
+        switch(type) {
+            case 'voltage':
+                voltageDataset.hidden = false;
+                currentDataset.hidden = true;
+                break;
+            case 'current':
+                voltageDataset.hidden = true;
+                currentDataset.hidden = false;
+                break;
+            case 'both':
+                voltageDataset.hidden = false;
+                currentDataset.hidden = false;
+                break;
+        }
+        
+        this.harmonicsChart.update();
     }
 
     updateOscilloscopeDisplay() {
@@ -1120,9 +1155,20 @@ class SmartMeterSimulator {
         partNumberSelect.innerHTML = '<option value="">Select Part Number</option>';
 
         const mcuData = {
-            'STM32': ['STM32F103', 'STM32F407', 'STM32L476'],
-            'ESP32': ['ESP32-WROOM-32', 'ESP32-S3', 'ESP32-C3'],
-            'AVR': ['ATmega328P', 'ATtiny85', 'ATmega2560']
+            'STM32F4': ['STM32F407VG', 'STM32F429ZI', 'STM32F446RE'],
+            'STM32G0': ['STM32G071RB', 'STM32G070CB', 'STM32G081RB'],
+            'STM32H7': ['STM32H743VI', 'STM32H753ZI', 'STM32H723ZG'],
+            'Renesas RL78': ['RL78/I1C', 'RL78/I1D', 'RL78/G14'],
+            'Renesas RX': ['RX65N', 'RX23W', 'RX72T'],
+            'ESP32': ['ESP32-S3', 'ESP32-C6', 'ESP32-WROOM-32'],
+            'ESP8266': ['ESP8266-12F', 'ESP8266-07', 'ESP8266-01'],
+            'Arduino': ['Arduino Uno R3', 'Arduino Mega 2560', 'Arduino Nano'],
+            'TI MSP430': ['MSP430FR5994', 'MSP430G2553', 'MSP430F5529'],
+            'NXP': ['LPC1768', 'LPC4088', 'iMX RT1060'],
+            'Maxim': ['MAX78630', 'MAX32690', 'MAX32660'],
+            'Analog Devices': ['ADE9000', 'ADE7953', 'ADE7758'],
+            'Microchip': ['PIC32MX470F512L', 'PIC24FJ256GB110', 'SAMD21G18A'],
+            'Silicon Labs': ['EFM32GG11B', 'EFR32MG21', 'SI8922B']
         };
 
         if (mcuData[selectedFamily]) {
@@ -1133,7 +1179,7 @@ class SmartMeterSimulator {
                 partNumberSelect.appendChild(option);
             });
         }
-        this.updateMCUConfiguration(); // Update configuration even if no part number is selected
+        this.updateMCUConfiguration();
     }
 
     updateMCUConfiguration() {
